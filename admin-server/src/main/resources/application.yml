@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: admin-server
+
+server:
+  port: ${PORT:9090} 
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL}
+       
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
