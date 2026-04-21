@@ -28,21 +28,19 @@ spring:
             scope:
               - email
               - profile
-#          github:
-#            client-id: ${GITHUB_CLIENT_ID}
-#            client-secret: ${GITHUB_CLIENT_SECRET}
-#            scope:
-#              - user:email
-#              - read:user
-
+            redirect-uri: "${OAUTH2_REDIRECT_URI:http://localhost:8081/login/oauth2/code/google}"
+        provider:
+          google:
+            user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+            user-name-attribute: email
 
 # Service Discovery (Eureka)
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL}
-      register-with-eureka: true
-      fetch-registry: true
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+      register-with-eureka: ${EUREKA_REGISTER:true}
+      fetch-registry: ${EUREKA_FETCH:true}
   instance:
     prefer-ip-address: true
 
@@ -50,6 +48,10 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS}
+
+# Frontend and Backend URLs for CORS and Redirects
+frontend-url: ${FRONTEND_URL:http://localhost:4200}
+backend-url: ${BACKEND_URL:http://localhost:8081}
 
 springdoc:
   swagger-ui:
