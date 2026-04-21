@@ -18,12 +18,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "users") 
-public class User {
+@Table(name = "delivery_partners") 
+public class DeliveryPartner {
 	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long userId;
+	private Long partnerId;
 	
 	@Column(nullable = false)
 	private String fullName;
@@ -34,16 +34,11 @@ public class User {
 	@Column(nullable = false, unique = true)
 	private String phone;
 	 
-	@Enumerated(EnumType.STRING) 
-	@Column(nullable = false)
-	private Role role;
-		
 	private String passwordHash;
-	
 	
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private AuthProvider provider;
+	private String provider;
 	
 	@Column(nullable = false) 
 	private Boolean isActive;
@@ -53,4 +48,15 @@ public class User {
 
 	private String profilePicUrl;
 	
+	private String licenseNumber;
+	
+	private String vehicleType;
+	
+	private String vehicleNumber;
+	
+	private Boolean isVerified;
+	
+	private Double rating;
+	
 }
+
