@@ -12,7 +12,4 @@ public class OtpVerificationRequestDto {
 
     @NotBlank(message = "OTP is required")
     private String otp;
-
-    @NotBlank(message = "Role is required")
-    private String role; // CUSTOMER, RESTAURANT_OWNER, DELIVERY_PARTNER
 }

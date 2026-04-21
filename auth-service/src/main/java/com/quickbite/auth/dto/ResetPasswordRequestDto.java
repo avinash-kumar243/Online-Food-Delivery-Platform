@@ -17,7 +17,4 @@ public class ResetPasswordRequestDto {
 
     @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
-
-    @NotBlank(message = "Role is required")
-    private String role; // CUSTOMER, RESTAURANT_OWNER, DELIVERY_PARTNER
 }
