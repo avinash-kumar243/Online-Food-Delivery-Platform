@@ -13,11 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.quickbite.auth.dto.DeliveryPartnerRegisterRequestDto;
 import com.quickbite.auth.dto.DeliveryPartnerProfileDto;
 import com.quickbite.auth.dto.DeliveryPartnerUpdateProfileDto;
-import com.quickbite.auth.dto.ForgetPasswordRequestDto;
 import com.quickbite.auth.dto.LoginRequestDTO;
-import com.quickbite.auth.dto.OtpVerificationRequestDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
-import com.quickbite.auth.dto.ResetPasswordRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.service.DeliveryPartnerAuthServiceImpl;
 
@@ -85,36 +82,6 @@ public class DeliveryPartnerAuthController {
     @PostMapping("/deactivate/{partnerId}")
     public ResponseEntity<ResponseDto> deactivateAccount(@PathVariable Long partnerId) {
     	ResponseDto response = deliveryPartnerAuthService.deactivateAccount(partnerId);
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/forget-password")
-    public ResponseEntity<ResponseDto> forgetPassword(@RequestBody ForgetPasswordRequestDto request) {
-    	if (!"DELIVERY_PARTNER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	ResponseDto response = deliveryPartnerAuthService.forgetPassword(request.getEmail());
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/verify-otp")
-    public ResponseEntity<ResponseDto> verifyOtp(@RequestBody OtpVerificationRequestDto request) {
-    	if (!"DELIVERY_PARTNER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	ResponseDto response = deliveryPartnerAuthService.verifyOtp(request.getEmail(), request.getOtp());
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<ResponseDto> resetPassword(@RequestBody ResetPasswordRequestDto request) {
-    	if (!"DELIVERY_PARTNER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("New password and confirm password do not match", ""));
-    	}
-    	ResponseDto response = deliveryPartnerAuthService.resetPassword(request.getEmail(), request.getNewPassword());
     	return ResponseEntity.ok(response);
     }
 }

@@ -16,9 +16,6 @@ import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.dto.RestaurantOwnerRegisterRequestDto;
 import com.quickbite.auth.dto.RestaurantOwnerProfileDto;
 import com.quickbite.auth.dto.RestaurantOwnerUpdateProfileDto;
-import com.quickbite.auth.dto.ForgetPasswordRequestDto;
-import com.quickbite.auth.dto.OtpVerificationRequestDto;
-import com.quickbite.auth.dto.ResetPasswordRequestDto;
 import com.quickbite.auth.service.RestaurantOwnerAuthServiceImpl;
 
 import lombok.RequiredArgsConstructor;
@@ -85,36 +82,6 @@ public class RestaurantOwnerAuthController {
     @PostMapping("/deactivate/{ownerId}")
     public ResponseEntity<ResponseDto> deactivateAccount(@PathVariable Long ownerId) {
     	ResponseDto response = restaurantOwnerAuthService.deactivateAccount(ownerId);
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/forget-password")
-    public ResponseEntity<ResponseDto> forgetPassword(@RequestBody ForgetPasswordRequestDto request) {
-    	if (!"RESTAURANT_OWNER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	ResponseDto response = restaurantOwnerAuthService.forgetPassword(request.getEmail());
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/verify-otp")
-    public ResponseEntity<ResponseDto> verifyOtp(@RequestBody OtpVerificationRequestDto request) {
-    	if (!"RESTAURANT_OWNER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	ResponseDto response = restaurantOwnerAuthService.verifyOtp(request.getEmail(), request.getOtp());
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<ResponseDto> resetPassword(@RequestBody ResetPasswordRequestDto request) {
-    	if (!"RESTAURANT_OWNER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("New password and confirm password do not match", ""));
-    	}
-    	ResponseDto response = restaurantOwnerAuthService.resetPassword(request.getEmail(), request.getNewPassword());
     	return ResponseEntity.ok(response);
     }
 }

@@ -13,11 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.quickbite.auth.dto.CustomerRegisterRequestDto;
 import com.quickbite.auth.dto.CustomerProfileDto;
 import com.quickbite.auth.dto.CustomerUpdateProfileDto;
-import com.quickbite.auth.dto.ForgetPasswordRequestDto;
 import com.quickbite.auth.dto.LoginRequestDTO;
-import com.quickbite.auth.dto.OtpVerificationRequestDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
-import com.quickbite.auth.dto.ResetPasswordRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.service.CustomerAuthServiceImpl;
 
@@ -85,36 +82,6 @@ public class CustomerAuthController {
     @PostMapping("/deactivate/{customerId}")
     public ResponseEntity<ResponseDto> deactivateAccount(@PathVariable Long customerId) {
     	ResponseDto response = customerAuthService.deactivateAccount(customerId);
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/forget-password")
-    public ResponseEntity<ResponseDto> forgetPassword(@RequestBody ForgetPasswordRequestDto request) {
-    	if (!"CUSTOMER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	ResponseDto response = customerAuthService.forgetPassword(request.getEmail());
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/verify-otp")
-    public ResponseEntity<ResponseDto> verifyOtp(@RequestBody OtpVerificationRequestDto request) {
-    	if (!"CUSTOMER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	ResponseDto response = customerAuthService.verifyOtp(request.getEmail(), request.getOtp());
-    	return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<ResponseDto> resetPassword(@RequestBody ResetPasswordRequestDto request) {
-    	if (!"CUSTOMER".equals(request.getRole())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("Invalid role for this endpoint", ""));
-    	}
-    	if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-    		return ResponseEntity.badRequest().body(new ResponseDto("New password and confirm password do not match", ""));
-    	}
-    	ResponseDto response = customerAuthService.resetPassword(request.getEmail(), request.getNewPassword());
     	return ResponseEntity.ok(response);
     }
 }
