@@ -31,17 +31,18 @@ public class JwtFilter extends OncePerRequestFilter {  // JWTFilter = It ask JWT
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 		String path = request.getServletPath();
 
-        if(path.equals("/auth/register")
-                || path.equals("/auth/login")
-                || path.startsWith("/oauth2/")
-                || path.startsWith("/login/")
-                || path.startsWith("/swagger-ui/")
-                || path.equals("/swagger-ui.html")
-                || path.startsWith("/v3/api-docs")
-                || path.startsWith("/h2-console/")) {
-            filterChain.doFilter(request, response);
-            return; 
-        }
+		if(path.startsWith("/auth/")
+		        || path.startsWith("/oauth2/")
+		        || path.startsWith("/login/")
+		        || path.startsWith("/swagger-ui/")
+		        || path.equals("/swagger-ui.html")
+		        || path.startsWith("/v3/api-docs")
+		        || path.startsWith("/h2-console/")
+		        || path.startsWith("/actuator/health")
+		        || path.startsWith("/actuator/info")) {
+		    filterChain.doFilter(request, response);
+		    return;
+		}
 		
 		String authHeader = request.getHeader("Authorization");
         String token = null;
