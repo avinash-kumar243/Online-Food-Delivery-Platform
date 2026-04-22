@@ -44,6 +44,7 @@ public class DeliveryPartner {
 
 	@Column(nullable = false)
 	private LocalDateTime createdAt;
+	
 
 	private String profilePicUrl;
 	
