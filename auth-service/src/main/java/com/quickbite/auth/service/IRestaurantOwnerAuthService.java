@@ -1,14 +1,14 @@
 package com.quickbite.auth.service;
 
-import com.quickbite.auth.dto.RestaurantOwnerRegisterRequestDto;
 import com.quickbite.auth.dto.RestaurantOwnerProfileDto;
 import com.quickbite.auth.dto.RestaurantOwnerUpdateProfileDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 
 public interface IRestaurantOwnerAuthService {
 	
-	ResponseDto register(RestaurantOwnerRegisterRequestDto user); 
+	ResponseDto register(RegisterRequestDto user); 
 	ResponseDto login(String email, String password);
     void logout(String token);
     ResponseDto refreshToken(String token);

@@ -8,10 +8,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.quickbite.auth.dto.DeliveryPartnerRegisterRequestDto;
 import com.quickbite.auth.dto.DeliveryPartnerProfileDto;
 import com.quickbite.auth.dto.DeliveryPartnerUpdateProfileDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.entity.DeliveryPartner;
 import com.quickbite.auth.exception.AccountNotFoundException;
@@ -32,7 +32,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 	private final OtpService otpService;
 
 	@Override 
-	public ResponseDto register(DeliveryPartnerRegisterRequestDto registerDto) {
+	public ResponseDto register(RegisterRequestDto registerDto) {
         if(deliveryPartnerRepository.existsByEmail(registerDto.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
@@ -47,9 +47,6 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
         partner.setEmail(registerDto.getEmail());
         partner.setPhone(registerDto.getPhone()); 
         partner.setPasswordHash(passwordEncoder.encode(registerDto.getPassword()));
-        partner.setLicenseNumber(registerDto.getLicenseNumber());
-        partner.setVehicleType(registerDto.getVehicleType());
-        partner.setVehicleNumber(registerDto.getVehicleNumber());
         
         partner.setProvider("LOCAL"); 
         partner.setIsActive(true); 
@@ -124,15 +121,6 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 		DeliveryPartner partner = deliveryPartnerRepository.findByPartnerId(partnerId)
 				.orElseThrow(() -> new AccountNotFoundException("Delivery partner not found with id: " + partnerId));
 		
-		if(updateDto.getFullName() != null) {
-			partner.setFullName(updateDto.getFullName());
-		}
-		if(updateDto.getPhone() != null && !updateDto.getPhone().equals(partner.getPhone())) {
-			if(deliveryPartnerRepository.existsByPhone(updateDto.getPhone())) {
-				throw new RuntimeException("Phone already in use");
-			}
-			partner.setPhone(updateDto.getPhone());
-		}
 		if(updateDto.getVehicleType() != null) {
 			partner.setVehicleType(updateDto.getVehicleType());
 		}
@@ -141,6 +129,13 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 		}
 		if(updateDto.getProfilePicUrl() != null) {
 			partner.setProfilePicUrl(updateDto.getProfilePicUrl());
+		}
+		
+		if(updateDto.getLicenseNumber() != null) {
+			partner.setLicenseNumber(updateDto.getLicenseNumber());
+		}
+		if(updateDto.getIsVerified() != null) {
+			partner.setIsVerified(updateDto.getIsVerified());
 		}
 		
 		deliveryPartnerRepository.save(partner);

@@ -8,10 +8,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.quickbite.auth.dto.RestaurantOwnerRegisterRequestDto;
 import com.quickbite.auth.dto.RestaurantOwnerProfileDto;
 import com.quickbite.auth.dto.RestaurantOwnerUpdateProfileDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.entity.RestaurantOwner;
 import com.quickbite.auth.exception.AccountNotFoundException;
@@ -32,7 +32,7 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
 	private final OtpService otpService;
 
 	@Override 
-	public ResponseDto register(RestaurantOwnerRegisterRequestDto registerDto) {
+	public ResponseDto register(RegisterRequestDto registerDto) {
         if(restaurantOwnerRepository.existsByEmail(registerDto.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
@@ -45,12 +45,7 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
         
         owner.setFullName(registerDto.getFullName());
         owner.setEmail(registerDto.getEmail());
-        owner.setPhone(registerDto.getPhone()); 
         owner.setPasswordHash(passwordEncoder.encode(registerDto.getPassword()));
-        owner.setRestaurantName(registerDto.getRestaurantName());
-        owner.setRestaurantAddress(registerDto.getRestaurantAddress());
-        owner.setLicenseNumber(registerDto.getLicenseNumber());
-        owner.setBusinessRegistration(registerDto.getBusinessRegistration());
         
         owner.setProvider("LOCAL"); 
         owner.setIsActive(true); 

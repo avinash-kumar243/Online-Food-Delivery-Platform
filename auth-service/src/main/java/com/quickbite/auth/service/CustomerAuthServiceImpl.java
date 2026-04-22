@@ -7,7 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.quickbite.auth.dto.CustomerRegisterRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.CustomerProfileDto;
 import com.quickbite.auth.dto.CustomerUpdateProfileDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
@@ -33,7 +33,7 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 	private final OtpService otpService;
 
 	@Override 
-	public ResponseDto register(CustomerRegisterRequestDto registerDto) {
+	public ResponseDto register(RegisterRequestDto registerDto) {
         if(customerRepository.existsByEmail(registerDto.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
@@ -115,19 +115,10 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 	}
 
 	@Override
-	public CustomerProfileDto updateProfile(Long customerId, CustomerUpdateProfileDto updateDto) {
+	public CustomerProfileDto updateProfilePic(Long customerId, CustomerUpdateProfileDto updateDto) {
 		Customer customer = customerRepository.findByCustomerId(customerId)
 				.orElseThrow(() -> new AccountNotFoundException("Customer not found with id: " + customerId));
-		
-		if(updateDto.getFullName() != null) {
-			customer.setFullName(updateDto.getFullName());
-		}
-		if(updateDto.getPhone() != null && !updateDto.getPhone().equals(customer.getPhone())) {
-			if(customerRepository.existsByPhone(updateDto.getPhone())) {
-				throw new RuntimeException("Phone already in use");
-			}
-			customer.setPhone(updateDto.getPhone());
-		}
+
 		if(updateDto.getProfilePicUrl() != null) {
 			customer.setProfilePicUrl(updateDto.getProfilePicUrl());
 		}

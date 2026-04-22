@@ -1,14 +1,14 @@
 package com.quickbite.auth.service;
 
-import com.quickbite.auth.dto.DeliveryPartnerRegisterRequestDto;
 import com.quickbite.auth.dto.DeliveryPartnerProfileDto;
 import com.quickbite.auth.dto.DeliveryPartnerUpdateProfileDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 
 public interface IDeliveryPartnerAuthService {
 	
-	ResponseDto register(DeliveryPartnerRegisterRequestDto user); 
+	ResponseDto register(RegisterRequestDto user); 
 	ResponseDto login(String email, String password);
     void logout(String token);
     ResponseDto refreshToken(String token);
