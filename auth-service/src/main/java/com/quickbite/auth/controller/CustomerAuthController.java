@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.quickbite.auth.dto.CustomerRegisterRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.CustomerProfileDto;
 import com.quickbite.auth.dto.CustomerUpdateProfileDto;
 import com.quickbite.auth.dto.LoginRequestDTO;
@@ -28,7 +28,7 @@ public class CustomerAuthController {
 	private final CustomerAuthServiceImpl customerAuthService;
 
 	@PostMapping("/register")
-    public ResponseEntity<ResponseDto> register(@RequestBody CustomerRegisterRequestDto user) {
+    public ResponseEntity<ResponseDto> register(@RequestBody RegisterRequestDto user) {
 		ResponseDto registeredUser = customerAuthService.register(user); 
         return ResponseEntity.ok(registeredUser); 
     }
@@ -66,9 +66,8 @@ public class CustomerAuthController {
     }
     
     @PutMapping("/profile/{customerId}")
-    public ResponseEntity<CustomerProfileDto> updateProfile(@PathVariable Long customerId,
-    		@RequestBody CustomerUpdateProfileDto updateDto) {
-    	CustomerProfileDto profile = customerAuthService.updateProfile(customerId, updateDto);
+    public ResponseEntity<CustomerProfileDto> updateProfile(@PathVariable Long customerId, @RequestBody CustomerUpdateProfileDto updateDto) {
+    	CustomerProfileDto profile = customerAuthService.updateProfilePic(customerId, updateDto);
     	return ResponseEntity.ok(profile);
     }
     

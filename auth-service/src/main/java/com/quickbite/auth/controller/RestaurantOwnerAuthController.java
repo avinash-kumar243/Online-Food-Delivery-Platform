@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.quickbite.auth.dto.LoginRequestDTO;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
-import com.quickbite.auth.dto.RestaurantOwnerRegisterRequestDto;
 import com.quickbite.auth.dto.RestaurantOwnerProfileDto;
 import com.quickbite.auth.dto.RestaurantOwnerUpdateProfileDto;
 import com.quickbite.auth.service.RestaurantOwnerAuthServiceImpl;
@@ -28,7 +28,7 @@ public class RestaurantOwnerAuthController {
 	private final RestaurantOwnerAuthServiceImpl restaurantOwnerAuthService;
 
 	@PostMapping("/register")
-    public ResponseEntity<ResponseDto> register(@RequestBody RestaurantOwnerRegisterRequestDto user) {
+    public ResponseEntity<ResponseDto> register(@RequestBody RegisterRequestDto user) {
 		ResponseDto registeredUser = restaurantOwnerAuthService.register(user); 
         return ResponseEntity.ok(registeredUser); 
     }

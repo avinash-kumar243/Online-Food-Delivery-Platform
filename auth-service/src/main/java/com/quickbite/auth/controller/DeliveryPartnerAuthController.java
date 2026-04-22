@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.quickbite.auth.dto.DeliveryPartnerRegisterRequestDto;
 import com.quickbite.auth.dto.DeliveryPartnerProfileDto;
 import com.quickbite.auth.dto.DeliveryPartnerUpdateProfileDto;
 import com.quickbite.auth.dto.LoginRequestDTO;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
+import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.service.DeliveryPartnerAuthServiceImpl;
 
@@ -28,7 +28,7 @@ public class DeliveryPartnerAuthController {
 	private final DeliveryPartnerAuthServiceImpl deliveryPartnerAuthService;
 
 	@PostMapping("/register")
-    public ResponseEntity<ResponseDto> register(@RequestBody DeliveryPartnerRegisterRequestDto user) {
+    public ResponseEntity<ResponseDto> register(@RequestBody RegisterRequestDto user) {
 		ResponseDto registeredUser = deliveryPartnerAuthService.register(user); 
         return ResponseEntity.ok(registeredUser); 
     }
