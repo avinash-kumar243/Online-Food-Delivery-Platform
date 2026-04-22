@@ -36,7 +36,6 @@ public class DeliveryPartner {
 	 
 	private String passwordHash;
 	
-	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private String provider;
 	

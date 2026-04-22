@@ -36,7 +36,6 @@ public class RestaurantOwner {
 	 
 	private String passwordHash;
 	
-	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private String provider;
 	
