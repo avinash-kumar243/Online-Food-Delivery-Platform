@@ -22,4 +22,3 @@ public class RestaurantOwnerProfileDto {
 	private String profilePicUrl;
 	private LocalDateTime createdAt;
 }
-

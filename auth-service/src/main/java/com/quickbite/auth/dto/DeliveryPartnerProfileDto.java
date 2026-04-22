@@ -23,4 +23,3 @@ public class DeliveryPartnerProfileDto {
 	private String profilePicUrl;
 	private LocalDateTime createdAt;
 }
-

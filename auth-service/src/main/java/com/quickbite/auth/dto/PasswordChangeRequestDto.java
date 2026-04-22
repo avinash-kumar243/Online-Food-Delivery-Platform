@@ -19,4 +19,3 @@ public class PasswordChangeRequestDto {
 	@NotBlank
 	private String confirmPassword;
 }
-

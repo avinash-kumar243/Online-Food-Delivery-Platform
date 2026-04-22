@@ -15,4 +15,3 @@ public class RestaurantOwnerUpdateProfileDto {
 	private String restaurantAddress;
 	private String profilePicUrl;
 }
-

@@ -18,4 +18,3 @@ public class CustomerProfileDto {
 	private String profilePicUrl;
 	private LocalDateTime createdAt;
 }
-

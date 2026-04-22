@@ -8,9 +8,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CustomerUpdateProfileDto {
-	
-	private String fullName;
-	private String phone;
 	private String profilePicUrl;
 }
-
