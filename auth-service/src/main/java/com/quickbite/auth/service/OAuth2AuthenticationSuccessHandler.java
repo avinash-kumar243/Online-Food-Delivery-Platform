@@ -1,6 +1,8 @@
 package com.quickbite.auth.service;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,6 +45,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 		// Try to find and update existing user
 		String token = null;
 		String userType = null;
+		String redirectPath = null;
 		
 		// Check Customer
 		Optional<Customer> customerOpt = customerRepository.findByEmail(email);
@@ -55,6 +58,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 			customerRepository.save(customer);
 			token = jwtService.generateToken(email);
 			userType = "CUSTOMER";
+			redirectPath = "/auth/customer";
 		}
 		
 		// Check RestaurantOwner
@@ -69,6 +73,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 				restaurantOwnerRepository.save(owner);
 				token = jwtService.generateToken(email);
 				userType = "RESTAURANT_OWNER";
+				redirectPath = "/auth/restaurant";
 			}
 		}
 		
@@ -83,20 +88,24 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 				if (name != null) partner.setFullName(name);
 				deliveryPartnerRepository.save(partner);
 				token = jwtService.generateToken(email);
-				userType = "DELIVERY_AGENT";
+				userType = "DELIVERY_AGENT"; 
+				redirectPath = "/auth/delivery-partner";
 			}
 		}
 		
 		if (token != null) {
-			// Redirect to frontend with token and user type
-			// Update the frontend URL as per your frontend deployment URL
-			String redirectUrl = "http://localhost:4200/oauth2/success?token=" + token + "&userType=" + userType + "&email=" + email;
-			response.sendRedirect(redirectUrl);
-		} else {
-			// User not found, redirect to registration page or show error
-			String redirectUrl = "http://localhost:4200/auth/register?error=user_not_found&email=" + email;
-			response.sendRedirect(redirectUrl);
-		}
+            String redirectUrl = "http://localhost:4200" + redirectPath
+                    + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
+                    + "&oauth2=success"
+                    + "&userType=" + URLEncoder.encode(userType, StandardCharsets.UTF_8);
+
+            response.sendRedirect(redirectUrl);
+        } else {
+            String redirectUrl = "http://localhost:4200/welcome?error=user_not_found&email="
+                    + URLEncoder.encode(email, StandardCharsets.UTF_8);
+
+            response.sendRedirect(redirectUrl);
+        }
 	}
 	
 }
