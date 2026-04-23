@@ -45,8 +45,8 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
         
         owner.setFullName(registerDto.getFullName());
         owner.setEmail(registerDto.getEmail());
+        owner.setPhone(registerDto.getPhone());
         owner.setPasswordHash(passwordEncoder.encode(registerDto.getPassword()));
-        
         owner.setProvider("LOCAL"); 
         owner.setIsActive(true); 
         owner.setCreatedAt(LocalDateTime.now()); 

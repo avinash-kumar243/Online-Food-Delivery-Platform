@@ -193,11 +193,13 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 	public ResponseDto forgetPassword(String email) {
 		DeliveryPartner partner = deliveryPartnerRepository.findByEmail(email)
 				.orElseThrow(() -> new AccountNotFoundException("Account not found with this email"));
+		
 		String otp = otpService.generateOtp(email);
 		emailService.sendOtpEmail(email, otp);
+		
 		return new ResponseDto("OTP sent to your email", "");
 	}
-
+ 
 	@Override
 	public ResponseDto verifyOtp(String email, String otp) {
 		if (!otpService.verifyOtp(email, otp)) {
