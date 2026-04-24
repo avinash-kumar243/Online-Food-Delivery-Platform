@@ -1,0 +1,177 @@
+package com.quickbite.cartservice.service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import com.quickbite.cartservice.dto.AddCartItemRequest;
+import com.quickbite.cartservice.dto.CartItemResponse;
+import com.quickbite.cartservice.dto.CartResponse;
+import com.quickbite.cartservice.dto.UpdateCartItemQuantityRequest;
+import com.quickbite.cartservice.entity.Cart;
+import com.quickbite.cartservice.entity.CartItem;
+import com.quickbite.cartservice.exception.BadRequestException;
+import com.quickbite.cartservice.exception.CartItemNotFoundException;
+import com.quickbite.cartservice.repository.CartItemRepository;
+import com.quickbite.cartservice.repository.CartRepository;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class CartServiceImpl implements CartService {
+
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public CartResponse getCartByCustomerId(Long customerId) {
+        return cartRepository.findByCustomerId(customerId)
+            .map(this::toResponse)
+            .orElseGet(() -> new CartResponse(null, customerId, null, 0.0, List.of()));
+    }
+
+    @Override
+    @Transactional
+    public CartResponse addItemToCart(AddCartItemRequest request) {
+        Cart cart = cartRepository.findByCustomerId(request.customerId())
+            .orElseGet(() -> createCart(request.customerId()));
+
+        if (cart.getRestaurantId() == null) {
+            cart.setRestaurantId(request.restaurantId());
+        } else if (!Objects.equals(cart.getRestaurantId(), request.restaurantId())) {
+            changeRestaurant(cart, request.restaurantId());
+        }
+
+        CartItem existingItem = cart.getItems().stream()
+            .filter(item -> Objects.equals(item.getMenuItemId(), request.menuItemId()))
+            .filter(item -> Objects.equals(normalize(item.getCustomization()), normalize(request.customization())))
+            .findFirst()
+            .orElse(null);
+
+        if (existingItem != null) {
+            existingItem.setQuantity(existingItem.getQuantity() + request.quantity());
+            existingItem.setPrice(request.price());
+            existingItem.setName(request.name());
+        } else {
+            cart.getItems().add(CartItem.builder()
+                .menuItemId(request.menuItemId())
+                .name(request.name())
+                .price(request.price())
+                .quantity(request.quantity())
+                .customization(request.customization())
+                .cart(cart)
+                .build());
+        }
+
+        recalculateTotal(cart);
+        return toResponse(cartRepository.save(cart));
+    }
+
+    @Override
+    @Transactional
+    public CartResponse updateItemQuantity(UpdateCartItemQuantityRequest request) {
+        Cart cart = cartRepository.findByCustomerId(request.customerId())
+            .orElseThrow(() -> new CartItemNotFoundException(request.itemId()));
+
+        CartItem item = cart.getItems().stream()
+            .filter(cartItem -> Objects.equals(cartItem.getItemId(), request.itemId()))
+            .findFirst()
+            .orElseThrow(() -> new CartItemNotFoundException(request.itemId()));
+
+        item.setQuantity(request.quantity());
+        recalculateTotal(cart);
+        return toResponse(cartRepository.save(cart));
+    }
+
+    @Override
+    @Transactional
+    public CartResponse removeItem(Long itemId) {
+        CartItem item = cartItemRepository.findById(itemId)
+            .orElseThrow(() -> new CartItemNotFoundException(itemId));
+
+        Cart cart = item.getCart();
+        cart.getItems().remove(item);
+        resetRestaurantIfEmpty(cart);
+        recalculateTotal(cart);
+        return toResponse(cartRepository.save(cart));
+    }
+
+    @Override
+    @Transactional
+    public CartResponse applyPromoCode(Long customerId, String promoCode) {
+        if (!StringUtils.hasText(promoCode)) {
+            throw new BadRequestException("promoCode must not be blank");
+        }
+
+        Cart cart = cartRepository.findByCustomerId(customerId)
+            .orElseGet(() -> createCart(customerId));
+
+        return toResponse(cartRepository.save(cart));
+    }
+
+    @Override
+    @Transactional
+    public void clearCart(Long customerId) {
+        cartRepository.findByCustomerId(customerId).ifPresent(cartRepository::delete);
+    }
+
+    private Cart createCart(Long customerId) {
+        return Cart.builder()
+            .customerId(customerId)
+            .items(new ArrayList<>())
+            .totalPrice(0.0)
+            .build();
+    }
+
+    private void changeRestaurant(Cart cart, Long restaurantId) {
+        cart.getItems().clear();
+        cart.setRestaurantId(restaurantId);
+        cart.setTotalPrice(0.0);
+    }
+
+    private void resetRestaurantIfEmpty(Cart cart) {
+        if (cart.getItems().isEmpty()) {
+            cart.setRestaurantId(null);
+        }
+    }
+
+    private void recalculateTotal(Cart cart) {
+        double total = cart.getItems().stream()
+            .mapToDouble(item -> item.getPrice() * item.getQuantity())
+            .sum();
+
+        cart.setTotalPrice(total);
+    }
+
+    private CartResponse toResponse(Cart cart) {
+        List<CartItemResponse> items = cart.getItems().stream()
+            .map(item -> new CartItemResponse(
+                item.getItemId(),
+                item.getMenuItemId(),
+                item.getName(),
+                item.getPrice(),
+                item.getQuantity(),
+                item.getCustomization(),
+                item.getPrice() * item.getQuantity()
+            ))
+            .toList();
+
+        return new CartResponse(
+            cart.getCartId(),
+            cart.getCustomerId(),
+            cart.getRestaurantId(),
+            cart.getTotalPrice(),
+            items
+        );
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+}
