@@ -16,7 +16,11 @@ public interface OrderService {
 
     List<OrderResponse> getOrdersByRestaurantId(Long restaurantId);
 
+    List<OrderResponse> getOrdersByDeliveryAgentId(Long deliveryAgentId);
+
     List<OrderResponse> getActiveOrders();
+
+    List<OrderResponse> getAvailableOrders();
 
     OrderResponse updateOrderStatus(Long orderId, OrderStatus status);
 

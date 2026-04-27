@@ -57,6 +57,16 @@ public class OrderResource {
         return ResponseEntity.ok(orderService.getOrdersByRestaurantId(restaurantId));
     }
 
+    @GetMapping("/delivery-agent/{deliveryAgentId}")
+    public ResponseEntity<List<OrderResponse>> getDeliveryAgentOrders(@PathVariable Long deliveryAgentId) {
+        return ResponseEntity.ok(orderService.getOrdersByDeliveryAgentId(deliveryAgentId));
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<List<OrderResponse>> getAvailableOrders() {
+        return ResponseEntity.ok(orderService.getAvailableOrders());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getOrderById(id));

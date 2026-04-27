@@ -101,9 +101,29 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByDeliveryAgentId(Long deliveryAgentId) {
+        return orderRepository.findByDeliveryAgentId(deliveryAgentId).stream()
+            .sorted(orderDateDesc())
+            .map(this::toResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getActiveOrders() {
         return orderRepository.findAll().stream()
             .filter(order -> ACTIVE_STATUSES.contains(order.getOrderStatus()))
+            .sorted(orderDateDesc())
+            .map(this::toResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getAvailableOrders() {
+        return orderRepository.findAll().stream()
+            .filter(order -> ACTIVE_STATUSES.contains(order.getOrderStatus()))
+            .filter(order -> order.getDeliveryAgentId() == null)
             .sorted(orderDateDesc())
             .map(this::toResponse)
             .toList();
