@@ -5,7 +5,7 @@ spring:
   application:
     name: cart-service
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:cart-service-db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    url: ${DB_URL}
     driver-class-name: org.h2.Driver
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:}
@@ -21,15 +21,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  boot:
-    admin:
-      client:
-        enabled: ${ADMIN_CLIENT_ENABLED:true}
-        url: ${ADMIN_SERVER_URL:http://localhost:9090}
-        username: ${ADMIN_SERVER_USERNAME:admin}
-        password: ${ADMIN_SERVER_PASSWORD:admin}
-        instance:
-          prefer-ip: true
 
 eureka:
   client:
@@ -53,3 +44,5 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+frontend-url: ${FRONTEND_URL:http://localhost:4200}
