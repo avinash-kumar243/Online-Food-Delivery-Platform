@@ -6,9 +6,9 @@ spring:
     name: restaurant-service
 
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:restaurant-service-db};
+    url: ${DB_URL};
     driver-class-name: org.h2.Driver
-    username: ${DB_USERNAME:sa}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD:}
   h2:
     console:
@@ -22,15 +22,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  boot:
-    admin:
-      client:
-        enabled: ${ADMIN_CLIENT_ENABLED:true}
-        url: ${ADMIN_SERVER_URL:http://localhost:9090}
-        username: ${ADMIN_SERVER_USERNAME:admin}
-        password: ${ADMIN_SERVER_PASSWORD:admin}
-        instance:
-          prefer-ip: true
 
 eureka:
   client:
@@ -54,3 +45,5 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+frontend-url: ${FRONTEND_URL:http://localhost:4200}
