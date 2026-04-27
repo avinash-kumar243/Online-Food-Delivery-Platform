@@ -5,9 +5,9 @@ spring:
   application:
     name: menu-service
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:menu-service-db}
+    url: ${DB_URL}
     driver-class-name: org.h2.Driver
-    username: ${DB_USERNAME:sa}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: 15
@@ -28,27 +28,18 @@ spring:
         order_inserts: true
         order_updates: true
 
-  boot:
-    admin:
-      client:
-        url: ${ADMIN_SERVER_URL:http://localhost:9090}
-        username: ${ADMIN_SERVER_USERNAME:}
-        password: ${ADMIN_SERVER_PASSWORD:}
-        instance:
-          prefer-ip: true
-
 app:
   jwt:
-    secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
+    secret: ${JWT_SECRET}
 
 frontend-url: ${FRONTEND_URL:http://localhost:4200}
 
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_URL:http://localhost:8761/eureka}}
-    register-with-eureka: ${EUREKA_REGISTER:true}
-    fetch-registry: ${EUREKA_FETCH:true}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: true
 
 management:
   endpoints:
@@ -57,7 +48,7 @@ management:
         include: health,info
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: always
 
 springdoc:
   swagger-ui:
