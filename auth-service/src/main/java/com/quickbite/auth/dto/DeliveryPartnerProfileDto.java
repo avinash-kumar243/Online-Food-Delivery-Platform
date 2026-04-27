@@ -19,6 +19,7 @@ public class DeliveryPartnerProfileDto {
 	private String vehicleNumber;
 	private Boolean isActive;
 	private Boolean isVerified;
+	private Boolean isOnline;
 	private Double rating;
 	private String profilePicUrl;
 	private LocalDateTime createdAt;

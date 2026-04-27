@@ -6,9 +6,9 @@ spring:
     name: auth-service
 
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:h2:mem:authdb}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
 
   jpa:
     hibernate:
@@ -17,6 +17,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+    open-in-view: false
 
   security:
     oauth2:
@@ -68,3 +69,21 @@ backend-url: ${BACKEND_URL:http://localhost:8081}
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+management:
+  health:
+    mail:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: auth-service
+    description: Authentication service for QuickBite
+    version: 1.0.0

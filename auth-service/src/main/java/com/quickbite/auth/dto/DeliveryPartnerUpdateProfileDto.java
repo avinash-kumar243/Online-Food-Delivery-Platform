@@ -14,4 +14,5 @@ public class DeliveryPartnerUpdateProfileDto {
 	private String profilePicUrl;
 	private String licenseNumber;
 	private Boolean isVerified;
+	private Boolean isOnline;
 }

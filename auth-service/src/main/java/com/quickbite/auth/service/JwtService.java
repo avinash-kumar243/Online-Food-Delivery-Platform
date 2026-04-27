@@ -2,7 +2,9 @@ package com.quickbite.auth.service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.util.HashMap;
 import java.util.Date;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,7 +30,20 @@ public class JwtService {  // JWT Token related operations
     }
 
     public String generateToken(String email) {
+        return generateToken(email, null, null);
+    }
+
+    public String generateToken(String email, String role, Long userId) {
+        Map<String, Object> claims = new HashMap<>();
+        if (role != null && !role.isBlank()) {
+            claims.put("role", role);
+        }
+        if (userId != null) {
+            claims.put("userId", userId);
+        }
+
         return Jwts.builder()
+                .setClaims(claims)
                 .setSubject(email)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtTokenValidity))

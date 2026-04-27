@@ -51,14 +51,15 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
         partner.setProvider("LOCAL"); 
         partner.setIsActive(true); 
         partner.setIsVerified(false);
+        partner.setIsOnline(false);
         partner.setRating(0.0);
         partner.setCreatedAt(LocalDateTime.now()); 
 
         deliveryPartnerRepository.save(partner); 
         
-        String token = jwtService.generateToken(registerDto.getEmail());
+        String token = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId());
         
-        return new ResponseDto("Delivery partner registration successful", token); 
+        return new ResponseDto("Delivery partner registration successful", token, "DELIVERY_AGENT", partner.getPartnerId(), partner.getEmail()); 
     }
 
     @Override
@@ -75,9 +76,9 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
     	
     	deliveryPartnerRepository.save(partner);
     	
-    	String token = jwtService.generateToken(email); 
+    	String token = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId()); 
         
-        return new ResponseDto("Delivery partner login successful", token);  
+        return new ResponseDto("Delivery partner login successful", token, "DELIVERY_AGENT", partner.getPartnerId(), partner.getEmail());  
     }
 
     @Override
@@ -105,7 +106,8 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
     		throw new RuntimeException("Invalid or expired token");
     	}
     	
-    	return new ResponseDto("New Token: ", jwtService.generateToken(partner.getEmail())); 
+    	String refreshedToken = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId());
+    	return new ResponseDto("New Token: ", refreshedToken, "DELIVERY_AGENT", partner.getPartnerId(), partner.getEmail()); 
     }
 
 	@Override
@@ -136,6 +138,9 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 		}
 		if(updateDto.getIsVerified() != null) {
 			partner.setIsVerified(updateDto.getIsVerified());
+		}
+		if(updateDto.getIsOnline() != null) {
+			partner.setIsOnline(updateDto.getIsOnline());
 		}
 		
 		deliveryPartnerRepository.save(partner);
@@ -183,6 +188,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 				partner.getVehicleNumber(),
 				partner.getIsActive(),
 				partner.getIsVerified(),
+				partner.getIsOnline(),
 				partner.getRating(),
 				partner.getProfilePicUrl(),
 				partner.getCreatedAt()

@@ -55,9 +55,9 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 
         customerRepository.save(customer); 
         
-        String token = jwtService.generateToken(registerDto.getEmail());
+        String token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
         
-        return new ResponseDto("Customer registration successful", token); 
+        return new ResponseDto("Customer registration successful", token, "CUSTOMER", customer.getCustomerId(), customer.getEmail()); 
     }
 
     @Override
@@ -73,9 +73,9 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
     	
     	customerRepository.save(customer);
     	
-    	String token = jwtService.generateToken(email); 
+    	String token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId()); 
         
-        return new ResponseDto("Customer login successful", token);  
+        return new ResponseDto("Customer login successful", token, "CUSTOMER", customer.getCustomerId(), customer.getEmail());  
     }
 
     @Override
@@ -103,7 +103,8 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
     		throw new RuntimeException("Invalid or expired token");
     	}
     	
-    	return new ResponseDto("New Token: ", jwtService.generateToken(customer.getEmail())); 
+    	String refreshedToken = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
+    	return new ResponseDto("New Token: ", refreshedToken, "CUSTOMER", customer.getCustomerId(), customer.getEmail()); 
     }
 
 	@Override

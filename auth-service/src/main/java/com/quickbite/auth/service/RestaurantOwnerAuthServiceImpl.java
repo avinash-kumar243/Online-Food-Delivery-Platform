@@ -53,9 +53,9 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
 
         restaurantOwnerRepository.save(owner); 
         
-        String token = jwtService.generateToken(registerDto.getEmail());
+        String token = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId());
         
-        return new ResponseDto("Restaurant owner registration successful", token); 
+        return new ResponseDto("Restaurant owner registration successful", token, "RESTAURANT_OWNER", owner.getOwnerId(), owner.getEmail()); 
     }
 
     @Override
@@ -72,9 +72,9 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
     	
     	restaurantOwnerRepository.save(owner);
     	
-    	String token = jwtService.generateToken(email); 
+    	String token = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId()); 
         
-        return new ResponseDto("Restaurant owner login successful", token);  
+        return new ResponseDto("Restaurant owner login successful", token, "RESTAURANT_OWNER", owner.getOwnerId(), owner.getEmail());  
     }
 
     @Override
@@ -102,7 +102,8 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
     		throw new RuntimeException("Invalid or expired token");
     	}
     	
-    	return new ResponseDto("New Token: ", jwtService.generateToken(owner.getEmail())); 
+    	String refreshedToken = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId());
+    	return new ResponseDto("New Token: ", refreshedToken, "RESTAURANT_OWNER", owner.getOwnerId(), owner.getEmail()); 
     }
 
 	@Override

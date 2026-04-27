@@ -55,6 +55,8 @@ public class DeliveryPartner {
 	private String vehicleNumber;
 	
 	private Boolean isVerified;
+
+	private Boolean isOnline;
 	
 	private Double rating;
 	

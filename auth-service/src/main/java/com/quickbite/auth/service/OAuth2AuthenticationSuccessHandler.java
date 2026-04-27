@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -27,6 +28,9 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+
+    @Value("${frontend-url:http://localhost:4200}")
+    private String frontendUrl;
 
     private final CustomerRepository customerRepository;
     private final DeliveryPartnerRepository deliveryPartnerRepository;
@@ -55,6 +59,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
         String token;
         String userType;
+        Long userId;
 
         switch (appRole) {
             case "CUSTOMER" -> {
@@ -83,8 +88,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
                 customerRepository.save(customer);
 
-                token = jwtService.generateToken(email);
+                token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
                 userType = "CUSTOMER";
+                userId = customer.getCustomerId();
             }
 
             case "RESTAURANT_OWNER" -> {
@@ -113,8 +119,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
                 restaurantOwnerRepository.save(owner);
 
-                token = jwtService.generateToken(email);
+                token = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId());
                 userType = "RESTAURANT_OWNER";
+                userId = owner.getOwnerId();
             }
 
             case "DELIVERY_AGENT" -> {
@@ -130,6 +137,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                     partner.setPhone("TEMP_" + System.currentTimeMillis());
                     partner.setPasswordHash("GOOGLE_AUTH");
                     partner.setCreatedAt(LocalDateTime.now());
+                    partner.setIsOnline(false);
                 }
 
                 partner.setIsActive(true);
@@ -143,8 +151,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
                 deliveryPartnerRepository.save(partner);
 
-                token = jwtService.generateToken(email);
+                token = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId());
                 userType = "DELIVERY_AGENT";
+                userId = partner.getPartnerId();
             }
 
             default -> {
@@ -173,15 +182,17 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
                 customerRepository.save(customer);
 
-                token = jwtService.generateToken(email);
+                token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
                 userType = "CUSTOMER";
+                userId = customer.getCustomerId();
             }
         }
 
-        String redirectUrl = "http://localhost:4200/dashboard"
+        String redirectUrl = frontendUrl + "/dashboard"
                 + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
                 + "&oauth2=success"
-                + "&userType=" + URLEncoder.encode(userType, StandardCharsets.UTF_8);
+                + "&userType=" + URLEncoder.encode(userType, StandardCharsets.UTF_8)
+                + "&userId=" + userId;
 
         response.sendRedirect(redirectUrl);
     }
