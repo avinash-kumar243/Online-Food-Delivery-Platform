@@ -15,6 +15,7 @@ public record OrderResponse(
     BigDecimal discount,
     BigDecimal finalAmount,
     String modeOfPayment,
+    String paymentStatus,
     OrderStatus orderStatus,
     LocalDateTime orderDate,
     LocalDateTime estimatedDelivery,
