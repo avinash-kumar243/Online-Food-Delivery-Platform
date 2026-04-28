@@ -7,8 +7,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.quickbite.restaurant.client.AuthServiceClient;
+import com.quickbite.restaurant.dto.AdminRestaurantResponse;
 import com.quickbite.restaurant.dto.RestaurantRequest;
 import com.quickbite.restaurant.dto.RestaurantResponse;
+import com.quickbite.restaurant.dto.UserSummaryDto;
+import com.quickbite.restaurant.entity.ApprovalStatus;
 import com.quickbite.restaurant.entity.Restaurant;
 import com.quickbite.restaurant.exception.BadRequestException;
 import com.quickbite.restaurant.exception.RestaurantNotFoundException;
@@ -23,14 +27,23 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     private final RestaurantRepository restaurantRepository;
     private final RestaurantMapper restaurantMapper;
+    private final AuthServiceClient authServiceClient;
 
     @Override
     @Transactional
     public RestaurantResponse registerRestaurant(RestaurantRequest request) {
-        Restaurant restaurant = restaurantMapper.toEntity(request);
-        restaurant.setAvgRating(0.0);
+        Restaurant restaurant = restaurantRepository.findFirstByOwnerIdOrderByRestaurantIdAsc(request.ownerId())
+            .orElseGet(() -> restaurantMapper.toEntity(request));
+
+        restaurantMapper.updateEntity(restaurant, request);
+        restaurant.setAvgRating(restaurant.getAvgRating() == null ? 0.0 : restaurant.getAvgRating());
         restaurant.setIsOpen(Boolean.FALSE);
         restaurant.setIsApproved(Boolean.FALSE);
+        restaurant.setApprovalStatus(ApprovalStatus.PENDING);
+        restaurant.setRejectionReason(null);
+        restaurant.setReviewedByAdminId(null);
+        restaurant.setReviewedAt(null);
+        restaurant.setSubmittedAt(java.time.LocalDateTime.now());
         return restaurantMapper.toResponse(restaurantRepository.save(restaurant));
     }
 
@@ -51,8 +64,17 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<RestaurantResponse> getApprovedRestaurants() {
+        return restaurantRepository.findByApprovalStatusAndIsApprovedTrue(ApprovalStatus.APPROVED).stream()
+            .sorted(Comparator.comparing(Restaurant::getName, String.CASE_INSENSITIVE_ORDER))
+            .map(restaurantMapper::toResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<RestaurantResponse> searchRestaurants(String name, String city, String cuisine) {
-        return restaurantRepository.findAll().stream()
+        return restaurantRepository.findByApprovalStatusAndIsApprovedTrue(ApprovalStatus.APPROVED).stream()
             .filter(restaurant -> containsIgnoreCase(restaurant.getName(), name))
             .filter(restaurant -> equalsIgnoreCase(restaurant.getCity(), city))
             .filter(restaurant -> equalsIgnoreCase(restaurant.getCuisine(), cuisine))
@@ -63,7 +85,7 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RestaurantResponse> findNearbyRestaurants(double latitude, double longitude) {
+    public List<RestaurantResponse> findNearbyRestaurants(double latitude, double longitude, double radiusKm) {
         return restaurantRepository.findByIsOpenTrueAndIsApprovedTrue().stream()
             .map(restaurant -> new RestaurantDistance(restaurant, calculateDistance(
                 latitude,
@@ -71,7 +93,7 @@ public class RestaurantServiceImpl implements RestaurantService {
                 restaurant.getLatitude(),
                 restaurant.getLongitude()
             )))
-            .filter(result -> result.distance() <= result.restaurant().getDeliveryRadius())
+            .filter(result -> result.distance() <= Math.min(radiusKm, result.restaurant().getDeliveryRadius()))
             .sorted(Comparator.comparingDouble(RestaurantDistance::distance))
             .map(RestaurantDistance::restaurant)
             .map(restaurantMapper::toResponse)
@@ -83,14 +105,57 @@ public class RestaurantServiceImpl implements RestaurantService {
     public RestaurantResponse updateRestaurant(Long restaurantId, RestaurantRequest request) {
         Restaurant restaurant = getRestaurant(restaurantId);
         restaurantMapper.updateEntity(restaurant, request);
+        if (restaurant.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            restaurant.setApprovalStatus(ApprovalStatus.PENDING);
+            restaurant.setIsApproved(Boolean.FALSE);
+            restaurant.setRejectionReason(null);
+            restaurant.setReviewedByAdminId(null);
+            restaurant.setReviewedAt(null);
+            restaurant.setSubmittedAt(java.time.LocalDateTime.now());
+        }
         return restaurantMapper.toResponse(restaurantRepository.save(restaurant));
     }
 
     @Override
     @Transactional
-    public RestaurantResponse approveRestaurant(Long restaurantId, boolean approved) {
+    public List<AdminRestaurantResponse> getPendingRestaurants() {
+        return restaurantRepository.findByApprovalStatus(ApprovalStatus.PENDING).stream()
+            .sorted(Comparator.comparing(Restaurant::getSubmittedAt).reversed())
+            .map(this::toAdminResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminRestaurantResponse> getAllRestaurantsForAdmin() {
+        return restaurantRepository.findAll().stream()
+            .sorted(Comparator.comparing(Restaurant::getSubmittedAt).reversed())
+            .map(this::toAdminResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional
+    public RestaurantResponse approveRestaurant(Long restaurantId, Long adminId) {
         Restaurant restaurant = getRestaurant(restaurantId);
-        restaurant.setIsApproved(approved);
+        restaurant.setIsApproved(Boolean.TRUE);
+        restaurant.setApprovalStatus(ApprovalStatus.APPROVED);
+        restaurant.setRejectionReason(null);
+        restaurant.setReviewedByAdminId(adminId);
+        restaurant.setReviewedAt(java.time.LocalDateTime.now());
+        return restaurantMapper.toResponse(restaurantRepository.save(restaurant));
+    }
+
+    @Override
+    @Transactional
+    public RestaurantResponse rejectRestaurant(Long restaurantId, Long adminId, String feedback) {
+        Restaurant restaurant = getRestaurant(restaurantId);
+        restaurant.setIsApproved(Boolean.FALSE);
+        restaurant.setApprovalStatus(ApprovalStatus.REJECTED);
+        restaurant.setRejectionReason(feedback);
+        restaurant.setReviewedByAdminId(adminId);
+        restaurant.setReviewedAt(java.time.LocalDateTime.now());
+        restaurant.setIsOpen(Boolean.FALSE);
         return restaurantMapper.toResponse(restaurantRepository.save(restaurant));
     }
 
@@ -124,6 +189,16 @@ public class RestaurantServiceImpl implements RestaurantService {
     private Restaurant getRestaurant(Long restaurantId) {
         return restaurantRepository.findById(restaurantId)
             .orElseThrow(() -> new RestaurantNotFoundException(restaurantId));
+    }
+
+    private AdminRestaurantResponse toAdminResponse(Restaurant restaurant) {
+        UserSummaryDto owner = null;
+        try {
+            owner = authServiceClient.getUserSummary("RESTAURANT_OWNER", restaurant.getOwnerId());
+        } catch (RuntimeException ignored) {
+            // Gracefully return the restaurant record even if owner lookup is unavailable.
+        }
+        return restaurantMapper.toAdminResponse(restaurant, owner);
     }
 
     private boolean containsIgnoreCase(String value, String search) {
