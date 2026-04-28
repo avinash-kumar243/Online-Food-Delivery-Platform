@@ -8,9 +8,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.quickbite.cartservice.client.MenuServiceClient;
 import com.quickbite.cartservice.dto.AddCartItemRequest;
 import com.quickbite.cartservice.dto.CartItemResponse;
 import com.quickbite.cartservice.dto.CartResponse;
+import com.quickbite.cartservice.dto.MenuItemSnapshotDto;
 import com.quickbite.cartservice.dto.UpdateCartItemQuantityRequest;
 import com.quickbite.cartservice.entity.Cart;
 import com.quickbite.cartservice.entity.CartItem;
@@ -27,6 +29,7 @@ public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final MenuServiceClient menuServiceClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -39,13 +42,19 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartResponse addItemToCart(AddCartItemRequest request) {
+        MenuItemSnapshotDto menuItem = menuServiceClient.getMenuItem(request.menuItemId().intValue());
+        if (!Boolean.TRUE.equals(menuItem.isAvailable())) {
+            throw new BadRequestException("The selected menu item is currently unavailable");
+        }
+
+        Long restaurantId = menuItem.restaurantId().longValue();
         Cart cart = cartRepository.findByCustomerId(request.customerId())
             .orElseGet(() -> createCart(request.customerId()));
 
         if (cart.getRestaurantId() == null) {
-            cart.setRestaurantId(request.restaurantId());
-        } else if (!Objects.equals(cart.getRestaurantId(), request.restaurantId())) {
-            changeRestaurant(cart, request.restaurantId());
+            cart.setRestaurantId(restaurantId);
+        } else if (!Objects.equals(cart.getRestaurantId(), restaurantId)) {
+            throw new BadRequestException("Cart already contains items from another restaurant. Clear the cart to continue.");
         }
 
         CartItem existingItem = cart.getItems().stream()
@@ -56,13 +65,13 @@ public class CartServiceImpl implements CartService {
 
         if (existingItem != null) {
             existingItem.setQuantity(existingItem.getQuantity() + request.quantity());
-            existingItem.setPrice(request.price());
-            existingItem.setName(request.name());
+            existingItem.setPrice(resolvePrice(menuItem));
+            existingItem.setName(menuItem.name());
         } else {
             cart.getItems().add(CartItem.builder()
                 .menuItemId(request.menuItemId())
-                .name(request.name())
-                .price(request.price())
+                .name(menuItem.name())
+                .price(resolvePrice(menuItem))
                 .quantity(request.quantity())
                 .customization(request.customization())
                 .cart(cart)
@@ -129,12 +138,6 @@ public class CartServiceImpl implements CartService {
             .build();
     }
 
-    private void changeRestaurant(Cart cart, Long restaurantId) {
-        cart.getItems().clear();
-        cart.setRestaurantId(restaurantId);
-        cart.setTotalPrice(0.0);
-    }
-
     private void resetRestaurantIfEmpty(Cart cart) {
         if (cart.getItems().isEmpty()) {
             cart.setRestaurantId(null);
@@ -173,5 +176,9 @@ public class CartServiceImpl implements CartService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private double resolvePrice(MenuItemSnapshotDto menuItem) {
+        return menuItem.discountedPrice() != null ? menuItem.discountedPrice() : menuItem.price();
     }
 }
