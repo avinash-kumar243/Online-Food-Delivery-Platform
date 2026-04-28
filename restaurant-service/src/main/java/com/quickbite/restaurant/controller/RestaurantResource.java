@@ -21,6 +21,7 @@ import com.quickbite.restaurant.dto.RestaurantRatingRequest;
 import com.quickbite.restaurant.dto.RestaurantRequest;
 import com.quickbite.restaurant.dto.RestaurantResponse;
 import com.quickbite.restaurant.dto.RestaurantStatusRequest;
+import com.quickbite.restaurant.exception.BadRequestException;
 import com.quickbite.restaurant.service.RestaurantService;
 
 import jakarta.validation.Valid;
@@ -28,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping("/restaurants")
+@RequestMapping({"/restaurants", "/api/v1/restaurants"})
 @RequiredArgsConstructor
 public class RestaurantResource {
 
@@ -49,6 +50,11 @@ public class RestaurantResource {
         return ResponseEntity.ok(restaurantService.getRestaurantsByOwner(ownerId));
     }
 
+    @GetMapping("/approved")
+    public ResponseEntity<List<RestaurantResponse>> getApprovedRestaurants() {
+        return ResponseEntity.ok(restaurantService.getApprovedRestaurants());
+    }
+
     @GetMapping("/search")
     public ResponseEntity<List<RestaurantResponse>> searchRestaurants(
         @RequestParam(required = false) String name,
@@ -60,10 +66,18 @@ public class RestaurantResource {
 
     @GetMapping("/nearby")
     public ResponseEntity<List<RestaurantResponse>> getNearbyRestaurants(
-        @RequestParam double latitude,
-        @RequestParam double longitude
+        @RequestParam(required = false) Double latitude,
+        @RequestParam(required = false, name = "lat") Double lat,
+        @RequestParam(required = false) Double longitude,
+        @RequestParam(required = false, name = "lng") Double lng,
+        @RequestParam(required = false, defaultValue = "5") Double radiusKm
     ) {
-        return ResponseEntity.ok(restaurantService.findNearbyRestaurants(latitude, longitude));
+        Double resolvedLatitude = latitude != null ? latitude : lat;
+        Double resolvedLongitude = longitude != null ? longitude : lng;
+        if (resolvedLatitude == null || resolvedLongitude == null) {
+            throw new BadRequestException("latitude/longitude or lat/lng are required");
+        }
+        return ResponseEntity.ok(restaurantService.findNearbyRestaurants(resolvedLatitude, resolvedLongitude, radiusKm));
     }
 
     @PutMapping("/{id}")
@@ -79,7 +93,9 @@ public class RestaurantResource {
         @PathVariable Long id,
         @Valid @RequestBody RestaurantApprovalRequest request
     ) {
-        return ResponseEntity.ok(restaurantService.approveRestaurant(id, request.approved()));
+        return request.approved()
+            ? ResponseEntity.ok(restaurantService.approveRestaurant(id, null))
+            : ResponseEntity.ok(restaurantService.rejectRestaurant(id, null, null));
     }
 
     @PatchMapping("/{id}/toggle-status")
