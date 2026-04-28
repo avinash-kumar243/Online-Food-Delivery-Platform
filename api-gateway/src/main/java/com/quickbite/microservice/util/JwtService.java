@@ -1,7 +1,6 @@
 package com.quickbite.microservice.util;
 
 import java.security.Key;
-import java.util.Base64;
 import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +23,7 @@ public class JwtService {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = Base64.getDecoder().decode(secret);
+        byte[] keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -49,5 +48,25 @@ public class JwtService {
                 .getBody()
                 .getExpiration()
                 .before(new Date());
+    }
+
+    public String extractRole(String token) {
+        Object role = Jwts.parserBuilder()
+                .setSigningKey(signingKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("role");
+        return role == null ? null : role.toString();
+    }
+
+    public String extractUserId(String token) {
+        Object userId = Jwts.parserBuilder()
+                .setSigningKey(signingKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("userId");
+        return userId == null ? null : userId.toString();
     }
 }
