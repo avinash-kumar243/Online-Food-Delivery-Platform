@@ -2,8 +2,11 @@ package com.quickbite.restaurant.util;
 
 import org.springframework.stereotype.Component;
 
+import com.quickbite.restaurant.dto.AdminRestaurantResponse;
 import com.quickbite.restaurant.dto.RestaurantRequest;
 import com.quickbite.restaurant.dto.RestaurantResponse;
+import com.quickbite.restaurant.dto.UserSummaryDto;
+import com.quickbite.restaurant.entity.ApprovalStatus;
 import com.quickbite.restaurant.entity.Restaurant;
 
 @Component
@@ -23,6 +26,8 @@ public class RestaurantMapper {
             .deliveryRadius(request.deliveryRadius())
             .minOrderAmount(request.minOrderAmount())
             .estimatedDeliveryMin(request.estimatedDeliveryMin())
+            .approvalStatus(ApprovalStatus.PENDING)
+            .isApproved(Boolean.FALSE)
             .build();
     }
 
@@ -57,8 +62,35 @@ public class RestaurantMapper {
             restaurant.getDeliveryRadius(),
             restaurant.getIsOpen(),
             restaurant.getIsApproved(),
+            restaurant.getApprovalStatus().name(),
+            restaurant.getRejectionReason(),
+            restaurant.getReviewedByAdminId(),
+            restaurant.getReviewedAt(),
+            restaurant.getSubmittedAt(),
             restaurant.getMinOrderAmount(),
             restaurant.getEstimatedDeliveryMin()
+        );
+    }
+
+    public AdminRestaurantResponse toAdminResponse(Restaurant restaurant, UserSummaryDto owner) {
+        return new AdminRestaurantResponse(
+            restaurant.getRestaurantId(),
+            restaurant.getName(),
+            restaurant.getOwnerId(),
+            owner != null ? owner.fullName() : null,
+            owner != null ? owner.email() : null,
+            owner != null ? owner.phone() : null,
+            restaurant.getCuisine(),
+            restaurant.getAddress(),
+            restaurant.getCity(),
+            restaurant.getPhone(),
+            restaurant.getIsOpen(),
+            restaurant.getIsApproved(),
+            restaurant.getApprovalStatus().name(),
+            restaurant.getSubmittedAt(),
+            restaurant.getRejectionReason(),
+            restaurant.getReviewedByAdminId(),
+            restaurant.getReviewedAt()
         );
     }
 }
