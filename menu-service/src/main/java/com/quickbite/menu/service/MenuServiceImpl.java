@@ -10,10 +10,12 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.quickbite.menu.client.RestaurantServiceClient;
 import com.quickbite.menu.dto.MenuCategoryRequest;
 import com.quickbite.menu.dto.MenuCategoryResponse;
 import com.quickbite.menu.dto.MenuItemRequest;
 import com.quickbite.menu.dto.MenuItemResponse;
+import com.quickbite.menu.dto.RestaurantSnapshotDto;
 import com.quickbite.menu.dto.RestaurantMenuResponse;
 import com.quickbite.menu.entity.MenuCategory;
 import com.quickbite.menu.entity.MenuItem;
@@ -40,10 +42,12 @@ public class MenuServiceImpl implements MenuService {
     private final MenuItemRepository itemRepository;
     private final MenuMapper mapper;
     private final CacheManager cacheManager;
+    private final RestaurantServiceClient restaurantServiceClient;
 
     @Override
     @Transactional
     public MenuCategoryResponse addCategory(MenuCategoryRequest request) {
+        ensureRestaurantApproved(request.restaurantId());
         if (categoryRepository.existsByRestaurantIdAndNameIgnoreCase(request.restaurantId(), request.name())) {
             throw new BadRequestException("Category already exists for restaurant " + request.restaurantId());
         }
@@ -57,6 +61,7 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional
     public MenuItemResponse addItem(MenuItemRequest request) {
+        ensureRestaurantApproved(request.restaurantId());
         validateDiscountedPrice(request.price(), request.discountedPrice());
         MenuCategory category = getCategory(request.categoryId());
         validateRestaurantOwnership(request.restaurantId(), category.getRestaurantId());
@@ -75,6 +80,7 @@ public class MenuServiceImpl implements MenuService {
             throw new BadRequestException("categoryId is required for update");
         }
 
+        ensureRestaurantApproved(request.restaurantId());
         MenuCategory category = getCategory(request.categoryId());
         Integer previousRestaurantId = category.getRestaurantId();
         mapper.updateEntity(category, request);
@@ -91,6 +97,7 @@ public class MenuServiceImpl implements MenuService {
             throw new BadRequestException("itemId is required for update");
         }
 
+        ensureRestaurantApproved(request.restaurantId());
         validateDiscountedPrice(request.price(), request.discountedPrice());
         MenuItem item = getItemEntity(request.itemId());
         MenuCategory category = getCategory(request.categoryId());
@@ -240,6 +247,13 @@ public class MenuServiceImpl implements MenuService {
     private void validateRestaurantOwnership(Integer restaurantId, Integer categoryRestaurantId) {
         if (!Objects.equals(restaurantId, categoryRestaurantId)) {
             throw new BadRequestException("restaurantId must match the category restaurant");
+        }
+    }
+
+    private void ensureRestaurantApproved(Integer restaurantId) {
+        RestaurantSnapshotDto restaurant = restaurantServiceClient.getRestaurant(restaurantId.longValue());
+        if (restaurant == null || !Boolean.TRUE.equals(restaurant.isApproved())) {
+            throw new BadRequestException("Menu management is available only for approved restaurants");
         }
     }
 
