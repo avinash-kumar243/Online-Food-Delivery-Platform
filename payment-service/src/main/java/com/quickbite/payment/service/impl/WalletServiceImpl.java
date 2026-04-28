@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.quickbite.payment.client.OrderServiceClient;
+import com.quickbite.payment.dto.OrderPaymentStatusRequest;
 import com.quickbite.payment.dto.PaymentResponse;
 import com.quickbite.payment.dto.WalletBalanceResponse;
 import com.quickbite.payment.dto.WalletPaymentRequest;
@@ -89,7 +90,7 @@ public class WalletServiceImpl implements WalletService {
             .orElseGet(() -> buildWalletPayment(request, referenceId));
 
         Payment savedPayment = paymentRepository.save(payment);
-        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), savedPayment.getStatus().name());
+        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), new OrderPaymentStatusRequest(savedPayment.getStatus().name()));
         return mapToPaymentResponse(savedPayment);
     }
 
