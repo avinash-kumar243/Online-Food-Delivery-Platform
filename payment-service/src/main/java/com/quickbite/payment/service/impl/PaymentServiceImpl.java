@@ -13,6 +13,7 @@ import com.quickbite.payment.client.OrderServiceClient;
 import com.quickbite.payment.dto.CodPaymentRequest;
 import com.quickbite.payment.dto.CreatePaymentOrderRequest;
 import com.quickbite.payment.dto.CreatePaymentOrderResponse;
+import com.quickbite.payment.dto.OrderPaymentStatusRequest;
 import com.quickbite.payment.dto.PaymentResponse;
 import com.quickbite.payment.dto.RefundRequest;
 import com.quickbite.payment.dto.VerifyPaymentRequest;
@@ -105,7 +106,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaidAt(LocalDateTime.now());
 
         Payment savedPayment = paymentRepository.save(payment);
-        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), savedPayment.getStatus().name());
+        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), new OrderPaymentStatusRequest(savedPayment.getStatus().name()));
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -160,7 +161,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         Payment savedPayment = paymentRepository.save(payment);
-        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), savedPayment.getStatus().name());
+        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), new OrderPaymentStatusRequest(savedPayment.getStatus().name()));
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -181,6 +182,14 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public List<PaymentResponse> getPaymentsByStatus(PaymentStatus status) {
         return paymentRepository.findByStatus(status).stream()
+            .map(this::mapToPaymentResponse)
+            .toList();
+    }
+
+    @Override
+    public List<PaymentResponse> getAllPayments() {
+        return paymentRepository.findAll().stream()
+            .sorted((left, right) -> Long.compare(right.getPaymentId(), left.getPaymentId()))
             .map(this::mapToPaymentResponse)
             .toList();
     }
@@ -232,7 +241,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setPaidAt(LocalDateTime.now());
         }
         paymentRepository.save(payment);
-        orderServiceClient.updateOrderPaymentStatus(payment.getOrderId(), payment.getStatus().name());
+        orderServiceClient.updateOrderPaymentStatus(payment.getOrderId(), new OrderPaymentStatusRequest(payment.getStatus().name()));
     }
 
     private void handlePaymentFailed(JsonNode root) {
@@ -260,7 +269,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setStatus(PaymentStatus.REFUNDED);
             payment.setRefundedAt(LocalDateTime.now());
             paymentRepository.save(payment);
-            orderServiceClient.updateOrderPaymentStatus(payment.getOrderId(), payment.getStatus().name());
+            orderServiceClient.updateOrderPaymentStatus(payment.getOrderId(), new OrderPaymentStatusRequest(payment.getStatus().name()));
         });
     }
 
