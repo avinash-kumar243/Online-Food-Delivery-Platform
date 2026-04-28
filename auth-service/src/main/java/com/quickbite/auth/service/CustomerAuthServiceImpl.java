@@ -13,6 +13,8 @@ import com.quickbite.auth.dto.CustomerUpdateProfileDto;
 import com.quickbite.auth.dto.PasswordChangeRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.entity.Customer;
+import com.quickbite.auth.enums.UserRole;
+import com.quickbite.auth.enums.UserStatus;
 import com.quickbite.auth.exception.AccountNotFoundException;
 import com.quickbite.auth.exception.PasswordNotMatchException;
 import com.quickbite.auth.repository.CustomerRepository;
@@ -31,6 +33,7 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 	private final TokenBlacklistService tokenBlacklistService;
 	private final EmailService emailService;
 	private final OtpService otpService;
+	private final UserStatusSupport userStatusSupport;
 
 	@Override 
 	public ResponseDto register(RegisterRequestDto registerDto) {
@@ -51,18 +54,20 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
         
         customer.setProvider("LOCAL"); 
         customer.setIsActive(true); 
+        customer.setStatus(UserStatus.ACTIVE);
         customer.setCreatedAt(LocalDateTime.now()); 
 
         customerRepository.save(customer); 
         
-        String token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
+        String token = jwtService.generateToken(customer.getEmail(), UserRole.CUSTOMER.name(), customer.getCustomerId());
         
-        return new ResponseDto("Customer registration successful", token, "CUSTOMER", customer.getCustomerId(), customer.getEmail()); 
+        return new ResponseDto("Customer registration successful", token, UserRole.CUSTOMER.name(), customer.getCustomerId(), customer.getEmail()); 
     }
 
     @Override
     public ResponseDto login(String email, String password) { 
     	Customer customer = customerRepository.findByEmail(email).orElseThrow(() -> new AccountNotFoundException("Account not found with this email!!!"));
+		userStatusSupport.ensureActive(userStatusSupport.resolve(customer.getStatus(), customer.getIsActive()), "Customer account");
     	
     	if(!passwordEncoder.matches(password, customer.getPasswordHash())) {
     		throw new PasswordNotMatchException("Wrong Password");
@@ -70,12 +75,13 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
     	
     	customer.setCreatedAt(LocalDateTime.now());
     	customer.setIsActive(true);
+		customer.setStatus(UserStatus.ACTIVE);
     	
     	customerRepository.save(customer);
     	
-    	String token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId()); 
+    	String token = jwtService.generateToken(customer.getEmail(), UserRole.CUSTOMER.name(), customer.getCustomerId()); 
         
-        return new ResponseDto("Customer login successful", token, "CUSTOMER", customer.getCustomerId(), customer.getEmail());  
+        return new ResponseDto("Customer login successful", token, UserRole.CUSTOMER.name(), customer.getCustomerId(), customer.getEmail());  
     }
 
     @Override
@@ -92,6 +98,7 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
     	String email = jwtService.extractEmailFromToken(token);
     	Customer customer = customerRepository.findByEmail(email)
     			.orElseThrow(() -> new RuntimeException("Customer not found"));
+		userStatusSupport.ensureActive(userStatusSupport.resolve(customer.getStatus(), customer.getIsActive()), "Customer account");
     	
     	UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 customer.getEmail(),
@@ -103,8 +110,8 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
     		throw new RuntimeException("Invalid or expired token");
     	}
     	
-    	String refreshedToken = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
-    	return new ResponseDto("New Token: ", refreshedToken, "CUSTOMER", customer.getCustomerId(), customer.getEmail()); 
+    	String refreshedToken = jwtService.generateToken(customer.getEmail(), UserRole.CUSTOMER.name(), customer.getCustomerId());
+    	return new ResponseDto("New Token: ", refreshedToken, UserRole.CUSTOMER.name(), customer.getCustomerId(), customer.getEmail()); 
     }
 
 	@Override
@@ -153,6 +160,7 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 				.orElseThrow(() -> new AccountNotFoundException("Customer not found with id: " + customerId));
 		
 		customer.setIsActive(false);
+		customer.setStatus(UserStatus.SUSPENDED);
 		customerRepository.save(customer);
 		
 		return new ResponseDto("Account deactivated successfully", "");
