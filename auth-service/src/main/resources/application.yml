@@ -57,10 +57,9 @@ eureka:
   instance:
     prefer-ip-address: true
 
-app:
-  jwt:
-    secret: ${JWT_SECRET}
-    expiration-ms: ${JWT_EXPIRATION_MS}
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS}
 
 # Frontend and Backend URLs for CORS and Redirects
 frontend-url: ${FRONTEND_URL:http://localhost:4200}
