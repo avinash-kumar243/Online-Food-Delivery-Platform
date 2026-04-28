@@ -1,5 +1,7 @@
 package com.quickbite.restaurant.dto;
 
+import java.time.LocalDateTime;
+
 public record RestaurantResponse(
     Long restaurantId,
     Long ownerId,
@@ -15,6 +17,11 @@ public record RestaurantResponse(
     Double deliveryRadius,
     Boolean isOpen,
     Boolean isApproved,
+    String approvalStatus,
+    String rejectionReason,
+    Long reviewedByAdminId,
+    LocalDateTime reviewedAt,
+    LocalDateTime submittedAt,
     Integer minOrderAmount,
     Integer estimatedDeliveryMin
 ) {
