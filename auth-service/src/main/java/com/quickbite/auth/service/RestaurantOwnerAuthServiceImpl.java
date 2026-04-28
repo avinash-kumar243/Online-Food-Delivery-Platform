@@ -14,6 +14,8 @@ import com.quickbite.auth.dto.PasswordChangeRequestDto;
 import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.entity.RestaurantOwner;
+import com.quickbite.auth.enums.UserRole;
+import com.quickbite.auth.enums.UserStatus;
 import com.quickbite.auth.exception.AccountNotFoundException;
 import com.quickbite.auth.exception.PasswordNotMatchException;
 import com.quickbite.auth.repository.RestaurantOwnerRepository;
@@ -30,6 +32,7 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
 	private final TokenBlacklistService tokenBlacklistService;
 	private final EmailService emailService;
 	private final OtpService otpService;
+	private final UserStatusSupport userStatusSupport;
 
 	@Override 
 	public ResponseDto register(RegisterRequestDto registerDto) {
@@ -49,19 +52,21 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
         owner.setPasswordHash(passwordEncoder.encode(registerDto.getPassword()));
         owner.setProvider("LOCAL"); 
         owner.setIsActive(true); 
+        owner.setStatus(UserStatus.ACTIVE);
         owner.setCreatedAt(LocalDateTime.now()); 
 
         restaurantOwnerRepository.save(owner); 
         
-        String token = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId());
+        String token = jwtService.generateToken(owner.getEmail(), UserRole.RESTAURANT_OWNER.name(), owner.getOwnerId());
         
-        return new ResponseDto("Restaurant owner registration successful", token, "RESTAURANT_OWNER", owner.getOwnerId(), owner.getEmail()); 
+        return new ResponseDto("Restaurant owner registration successful", token, UserRole.RESTAURANT_OWNER.name(), owner.getOwnerId(), owner.getEmail()); 
     }
 
     @Override
     public ResponseDto login(String email, String password) { 
     	RestaurantOwner owner = restaurantOwnerRepository.findByEmail(email)
     			.orElseThrow(() -> new AccountNotFoundException("Restaurant account not found with this email!!!"));
+		userStatusSupport.ensureActive(userStatusSupport.resolve(owner.getStatus(), owner.getIsActive()), "Restaurant owner account");
     	
     	if(!passwordEncoder.matches(password, owner.getPasswordHash())) {
     		throw new PasswordNotMatchException("Wrong Password");
@@ -69,12 +74,13 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
     	
     	owner.setCreatedAt(LocalDateTime.now());
     	owner.setIsActive(true);
+		owner.setStatus(UserStatus.ACTIVE);
     	
     	restaurantOwnerRepository.save(owner);
     	
-    	String token = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId()); 
+    	String token = jwtService.generateToken(owner.getEmail(), UserRole.RESTAURANT_OWNER.name(), owner.getOwnerId()); 
         
-        return new ResponseDto("Restaurant owner login successful", token, "RESTAURANT_OWNER", owner.getOwnerId(), owner.getEmail());  
+        return new ResponseDto("Restaurant owner login successful", token, UserRole.RESTAURANT_OWNER.name(), owner.getOwnerId(), owner.getEmail());  
     }
 
     @Override
@@ -91,6 +97,7 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
     	String email = jwtService.extractEmailFromToken(token);
     	RestaurantOwner owner = restaurantOwnerRepository.findByEmail(email)
     			.orElseThrow(() -> new RuntimeException("Restaurant owner not found"));
+		userStatusSupport.ensureActive(userStatusSupport.resolve(owner.getStatus(), owner.getIsActive()), "Restaurant owner account");
     	
     	UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 owner.getEmail(),
@@ -102,8 +109,8 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
     		throw new RuntimeException("Invalid or expired token");
     	}
     	
-    	String refreshedToken = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId());
-    	return new ResponseDto("New Token: ", refreshedToken, "RESTAURANT_OWNER", owner.getOwnerId(), owner.getEmail()); 
+    	String refreshedToken = jwtService.generateToken(owner.getEmail(), UserRole.RESTAURANT_OWNER.name(), owner.getOwnerId());
+    	return new ResponseDto("New Token: ", refreshedToken, UserRole.RESTAURANT_OWNER.name(), owner.getOwnerId(), owner.getEmail()); 
     }
 
 	@Override
@@ -167,6 +174,7 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
 				.orElseThrow(() -> new AccountNotFoundException("Restaurant owner not found with id: " + ownerId));
 		
 		owner.setIsActive(false);
+		owner.setStatus(UserStatus.SUSPENDED);
 		restaurantOwnerRepository.save(owner);
 		
 		return new ResponseDto("Account deactivated successfully", "");
