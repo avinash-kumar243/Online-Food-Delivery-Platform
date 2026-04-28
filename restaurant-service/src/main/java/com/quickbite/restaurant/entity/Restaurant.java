@@ -1,7 +1,11 @@
 package com.quickbite.restaurant.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -72,6 +76,22 @@ public class Restaurant {
     @Builder.Default
     @Column(name = "is_approved", nullable = false)
     private Boolean isApproved = Boolean.FALSE;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+
+    @Column(length = 500)
+    private String rejectionReason;
+
+    private Long reviewedByAdminId;
+
+    private LocalDateTime reviewedAt;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private LocalDateTime submittedAt = LocalDateTime.now();
 
     @Column(nullable = false)
     private Integer minOrderAmount;
