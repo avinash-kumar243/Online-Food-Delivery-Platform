@@ -66,9 +66,15 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             try {
                 // 5. Extract & Validate Token
                 String email = jwtService.extractEmail(token);
+                String role = jwtService.extractRole(token);
+                String userId = jwtService.extractUserId(token);
 
                 if (jwtService.isTokenExpired(token)) {
                     return onError(exchange, "Token Expired", HttpStatus.UNAUTHORIZED, path);
+                }
+
+                if (path.startsWith("/api/v1/admin/") && (role == null || !"ADMIN".equalsIgnoreCase(role))) {
+                    return onError(exchange, "Admin access required", HttpStatus.FORBIDDEN, path);
                 }
 
                 // 6. Pass user info downstream
@@ -76,6 +82,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                         exchange.mutate()
                                 .request(exchange.getRequest().mutate()
                                         .header("X-User-Email", email)
+                                        .header("X-User-Role", role == null ? "" : role)
+                                        .header("X-User-Id", userId == null ? "" : userId)
                                         .build())
                                 .build()
                 );
@@ -93,7 +101,16 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 || path.startsWith("/actuator/")
                 || path.startsWith("/swagger-ui/")
                 || path.startsWith("/v3/api-docs/")
-                || path.startsWith("/h2-console/");
+                || path.startsWith("/h2-console/")
+                || path.startsWith("/api/v1/restaurants/approved")
+                || path.startsWith("/api/v1/restaurants/search")
+                || path.startsWith("/api/v1/restaurants/nearby")
+                || path.matches("^/api/v1/restaurants/\\d+$")
+                || path.startsWith("/api/v1/menu/restaurant/")
+                || path.startsWith("/api/v1/menu/category/")
+                || path.startsWith("/api/v1/menu/item/")
+                || path.startsWith("/api/v1/menu/search")
+                || path.startsWith("/api/v1/menu/vegItems");
     }
 
     private Mono<Void> onError(org.springframework.web.server.ServerWebExchange exchange,
