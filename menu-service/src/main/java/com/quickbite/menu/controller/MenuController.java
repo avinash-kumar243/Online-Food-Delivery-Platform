@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping("/menu")
+@RequestMapping({"/menu", "/api/v1/menu"})
 @RequiredArgsConstructor
 public class MenuController {
 
