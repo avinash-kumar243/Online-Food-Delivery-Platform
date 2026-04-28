@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.quickbite.orderservice.dto.AssignDeliveryAgentRequest;
 import com.quickbite.orderservice.dto.OrderCountResponse;
+import com.quickbite.orderservice.dto.OrderPaymentStatusRequest;
 import com.quickbite.orderservice.dto.OrderResponse;
 import com.quickbite.orderservice.dto.PlaceOrderRequest;
 import com.quickbite.orderservice.dto.UpdateOrderStatusRequest;
@@ -26,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping("/orders")
+@RequestMapping({"/orders", "/api/v1/orders"})
 @RequiredArgsConstructor
 public class OrderResource {
 
@@ -62,7 +63,12 @@ public class OrderResource {
         return ResponseEntity.ok(orderService.getOrdersByDeliveryAgentId(deliveryAgentId));
     }
 
-    @GetMapping("/available")
+    @GetMapping("/agent/{agentId}")
+    public ResponseEntity<List<OrderResponse>> getAgentOrders(@PathVariable Long agentId) {
+        return ResponseEntity.ok(orderService.getOrdersByDeliveryAgentId(agentId));
+    }
+
+    @GetMapping({"/available", "/delivery/available"})
     public ResponseEntity<List<OrderResponse>> getAvailableOrders() {
         return ResponseEntity.ok(orderService.getAvailableOrders());
     }
@@ -82,6 +88,17 @@ public class OrderResource {
     public ResponseEntity<OrderResponse> assignDeliveryAgent(@PathVariable Long id,
                                                              @Valid @RequestBody AssignDeliveryAgentRequest request) {
         return ResponseEntity.ok(orderService.assignDeliveryAgent(id, request.deliveryAgentId()));
+    }
+
+    @PutMapping("/{id}/payment-status")
+    public ResponseEntity<OrderResponse> updatePaymentStatus(@PathVariable Long id,
+                                                             @Valid @RequestBody OrderPaymentStatusRequest request) {
+        return ResponseEntity.ok(orderService.updatePaymentStatus(id, request.paymentStatus()));
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<OrderResponse> cancelOrder(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.cancelOrder(id));
     }
 
     @PostMapping("/{id}/reorder")
