@@ -55,6 +55,9 @@ public class Order {
     @Column(nullable = false, length = 40)
     private String modeOfPayment;
 
+    @Column(nullable = false, length = 30)
+    private String paymentStatus;
+
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private OrderStatus orderStatus;
