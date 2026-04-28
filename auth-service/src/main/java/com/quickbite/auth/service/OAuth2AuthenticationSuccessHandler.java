@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -12,10 +13,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+import com.quickbite.auth.config.AppRoleAwareOAuth2AuthorizationRequestResolver;
 import com.quickbite.auth.entity.Customer;
 import com.quickbite.auth.entity.DeliveryPartner;
 import com.quickbite.auth.entity.RestaurantOwner;
+import com.quickbite.auth.enums.UserStatus;
 import com.quickbite.auth.repository.CustomerRepository;
 import com.quickbite.auth.repository.DeliveryPartnerRepository;
 import com.quickbite.auth.repository.RestaurantOwnerRepository;
@@ -23,6 +27,7 @@ import com.quickbite.auth.repository.RestaurantOwnerRepository;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -51,10 +56,26 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         String name = (String) attributes.get("name");
         String picture = (String) attributes.get("picture");
 
-        String appRole = request.getParameter("appRole");
+        HttpSession session = request.getSession(false);
+        String appRole = null;
+        if (session != null) {
+            Object storedAppRole = session.getAttribute(
+                AppRoleAwareOAuth2AuthorizationRequestResolver.APP_ROLE_SESSION_ATTRIBUTE
+            );
+            if (storedAppRole instanceof String storedRole) {
+                appRole = storedRole;
+            }
+            session.removeAttribute(AppRoleAwareOAuth2AuthorizationRequestResolver.APP_ROLE_SESSION_ATTRIBUTE);
+        }
 
-        if (appRole == null || appRole.isBlank()) {
+        if (!StringUtils.hasText(appRole)) {
+            appRole = request.getParameter("appRole");
+        }
+
+        if (!StringUtils.hasText(appRole)) {
             appRole = "CUSTOMER";
+        } else {
+            appRole = appRole.trim().toUpperCase(Locale.ROOT);
         }
 
         String token;
@@ -78,6 +99,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 customer.setIsActive(true);
+                customer.setStatus(UserStatus.ACTIVE);
                 customer.setProvider("GOOGLE");
                 if (picture != null) {
                     customer.setProfilePicUrl(picture);
@@ -109,6 +131,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 owner.setIsActive(true);
+                owner.setStatus(UserStatus.ACTIVE);
                 owner.setProvider("GOOGLE");
                 if (picture != null) {
                     owner.setProfilePicUrl(picture);
@@ -124,7 +147,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 userId = owner.getOwnerId();
             }
 
-            case "DELIVERY_AGENT" -> {
+            case "DELIVERY_PARTNER", "DELIVERY_AGENT" -> {
                 Optional<DeliveryPartner> partnerOpt = deliveryPartnerRepository.findByEmail(email);
 
                 DeliveryPartner partner;
@@ -141,6 +164,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 partner.setIsActive(true);
+                partner.setStatus(UserStatus.ACTIVE);
                 partner.setProvider("GOOGLE");
                 if (picture != null) {
                     partner.setProfilePicUrl(picture);
@@ -151,8 +175,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
                 deliveryPartnerRepository.save(partner);
 
-                token = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId());
-                userType = "DELIVERY_AGENT";
+                token = jwtService.generateToken(partner.getEmail(), "DELIVERY_PARTNER", partner.getPartnerId());
+                userType = "DELIVERY_PARTNER";
                 userId = partner.getPartnerId();
             }
 
@@ -172,6 +196,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 customer.setIsActive(true);
+                customer.setStatus(UserStatus.ACTIVE);
                 customer.setProvider("GOOGLE");
                 if (picture != null) {
                     customer.setProfilePicUrl(picture);
