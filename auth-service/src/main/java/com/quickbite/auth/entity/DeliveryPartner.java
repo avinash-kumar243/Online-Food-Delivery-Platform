@@ -2,6 +2,8 @@ package com.quickbite.auth.entity;
 
 import java.time.LocalDateTime;
 
+import com.quickbite.auth.enums.UserStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -42,6 +44,10 @@ public class DeliveryPartner {
 	@Column(nullable = false) 
 	private Boolean isActive;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 20)
+	private UserStatus status;
+
 	@Column(nullable = false)
 	private LocalDateTime createdAt;
 	
@@ -61,4 +67,3 @@ public class DeliveryPartner {
 	private Double rating;
 	
 }
-
