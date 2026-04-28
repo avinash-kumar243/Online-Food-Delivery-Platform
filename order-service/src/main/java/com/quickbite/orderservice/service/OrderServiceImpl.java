@@ -35,7 +35,9 @@ public class OrderServiceImpl implements OrderService {
         OrderStatus.PLACED,
         OrderStatus.CONFIRMED,
         OrderStatus.PREPARING,
-        OrderStatus.PICKED_UP
+        OrderStatus.READY_FOR_PICKUP,
+        OrderStatus.PICKED_UP,
+        OrderStatus.OUT_FOR_DELIVERY
     );
     private static final Map<OrderStatus, Set<OrderStatus>> VALID_STATUS_TRANSITIONS = buildTransitions();
 
@@ -59,6 +61,7 @@ public class OrderServiceImpl implements OrderService {
             .discount(discount)
             .finalAmount(totalAmount.subtract(discount))
             .modeOfPayment(request.modeOfPayment().trim())
+            .paymentStatus("PENDING")
             .orderStatus(OrderStatus.PLACED)
             .orderDate(LocalDateTime.now())
             .estimatedDelivery(request.estimatedDelivery() != null
@@ -122,8 +125,17 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<OrderResponse> getAvailableOrders() {
         return orderRepository.findAll().stream()
-            .filter(order -> ACTIVE_STATUSES.contains(order.getOrderStatus()))
+            .filter(order -> order.getOrderStatus() == OrderStatus.READY_FOR_PICKUP)
             .filter(order -> order.getDeliveryAgentId() == null)
+            .sorted(orderDateDesc())
+            .map(this::toResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getAllOrders() {
+        return orderRepository.findAll().stream()
             .sorted(orderDateDesc())
             .map(this::toResponse)
             .toList();
@@ -154,14 +166,36 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    public OrderResponse updatePaymentStatus(Long orderId, String paymentStatus) {
+        Order order = fetchOrder(orderId);
+        order.setPaymentStatus(paymentStatus == null || paymentStatus.isBlank() ? "PENDING" : paymentStatus.trim().toUpperCase());
+        return toResponse(orderRepository.save(order));
+    }
+
+    @Override
+    @Transactional
     public OrderResponse assignDeliveryAgent(Long orderId, Long deliveryAgentId) {
         Order order = fetchOrder(orderId);
 
         if (EnumSet.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED).contains(order.getOrderStatus())) {
             throw new BadRequestException("Cannot assign a delivery agent to a completed or cancelled order");
         }
+        if (order.getOrderStatus() != OrderStatus.READY_FOR_PICKUP) {
+            throw new BadRequestException("Delivery partners can only accept READY_FOR_PICKUP orders");
+        }
 
         order.setDeliveryAgentId(deliveryAgentId);
+        return toResponse(orderRepository.save(order));
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId) {
+        Order order = fetchOrder(orderId);
+        if (order.getOrderStatus() == OrderStatus.DELIVERED) {
+            throw new BadRequestException("Delivered orders cannot be cancelled");
+        }
+        order.setOrderStatus(OrderStatus.CANCELLED);
         return toResponse(orderRepository.save(order));
     }
 
@@ -241,6 +275,7 @@ public class OrderServiceImpl implements OrderService {
             order.getDiscount(),
             order.getFinalAmount(),
             order.getModeOfPayment(),
+            order.getPaymentStatus(),
             order.getOrderStatus(),
             order.getOrderDate(),
             order.getEstimatedDelivery(),
@@ -266,8 +301,10 @@ public class OrderServiceImpl implements OrderService {
         Map<OrderStatus, Set<OrderStatus>> transitions = new EnumMap<>(OrderStatus.class);
         transitions.put(OrderStatus.PLACED, EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED));
         transitions.put(OrderStatus.CONFIRMED, EnumSet.of(OrderStatus.PREPARING, OrderStatus.CANCELLED));
-        transitions.put(OrderStatus.PREPARING, EnumSet.of(OrderStatus.PICKED_UP, OrderStatus.CANCELLED));
-        transitions.put(OrderStatus.PICKED_UP, EnumSet.of(OrderStatus.DELIVERED));
+        transitions.put(OrderStatus.PREPARING, EnumSet.of(OrderStatus.READY_FOR_PICKUP, OrderStatus.CANCELLED));
+        transitions.put(OrderStatus.READY_FOR_PICKUP, EnumSet.of(OrderStatus.PICKED_UP, OrderStatus.CANCELLED));
+        transitions.put(OrderStatus.PICKED_UP, EnumSet.of(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED));
+        transitions.put(OrderStatus.OUT_FOR_DELIVERY, EnumSet.of(OrderStatus.DELIVERED));
         transitions.put(OrderStatus.DELIVERED, EnumSet.noneOf(OrderStatus.class));
         transitions.put(OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class));
         return transitions;
