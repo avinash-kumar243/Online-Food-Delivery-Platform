@@ -40,6 +40,7 @@ public class SecurityConfig {
 	private final JwtFilter filter;  
 	private final JWTAuthenticationEntryPoint point; 
 	private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+	private final AppRoleAwareOAuth2AuthorizationRequestResolver appRoleAwareOAuth2AuthorizationRequestResolver;
 	
 	@Value("${frontend-url}")
     private String frontendUrl; 
@@ -50,15 +51,19 @@ public class SecurityConfig {
 	
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+		http.cors(cors -> cors.disable())
 		 	.csrf(csrf -> csrf.disable())
 			.authorizeHttpRequests(authz -> authz
 					.requestMatchers("/auth/**", "/oauth2/**", "/h2-console/**", "/swagger-ui/**", "/swagger-ui.html/**", "/v3/api-docs/**").permitAll()
+					.requestMatchers("/api/v1/internal/**").permitAll()
 					.requestMatchers("/actuator/health", "/actuator/info").permitAll()
+					.requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 					.requestMatchers("/actuator/**").hasRole("ADMIN")
 					.anyRequest().authenticated()
 			)
 			.oauth2Login(oauth -> oauth
+			        .authorizationEndpoint(authorization -> authorization
+			                .authorizationRequestResolver(appRoleAwareOAuth2AuthorizationRequestResolver))
 			        .successHandler(oAuth2AuthenticationSuccessHandler)
 //			        .failureUrl(frontendUrl + "/auth?oauth2=failed")
 			)
