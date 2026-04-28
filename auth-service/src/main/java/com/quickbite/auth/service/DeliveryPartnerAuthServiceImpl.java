@@ -14,6 +14,8 @@ import com.quickbite.auth.dto.PasswordChangeRequestDto;
 import com.quickbite.auth.dto.RegisterRequestDto;
 import com.quickbite.auth.dto.ResponseDto;
 import com.quickbite.auth.entity.DeliveryPartner;
+import com.quickbite.auth.enums.UserRole;
+import com.quickbite.auth.enums.UserStatus;
 import com.quickbite.auth.exception.AccountNotFoundException;
 import com.quickbite.auth.exception.PasswordNotMatchException;
 import com.quickbite.auth.repository.DeliveryPartnerRepository;
@@ -30,6 +32,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 	private final TokenBlacklistService tokenBlacklistService;
 	private final EmailService emailService;
 	private final OtpService otpService;
+	private final UserStatusSupport userStatusSupport;
 
 	@Override 
 	public ResponseDto register(RegisterRequestDto registerDto) {
@@ -50,6 +53,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
         
         partner.setProvider("LOCAL"); 
         partner.setIsActive(true); 
+        partner.setStatus(UserStatus.ACTIVE);
         partner.setIsVerified(false);
         partner.setIsOnline(false);
         partner.setRating(0.0);
@@ -57,15 +61,16 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 
         deliveryPartnerRepository.save(partner); 
         
-        String token = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId());
+        String token = jwtService.generateToken(partner.getEmail(), UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId());
         
-        return new ResponseDto("Delivery partner registration successful", token, "DELIVERY_AGENT", partner.getPartnerId(), partner.getEmail()); 
+        return new ResponseDto("Delivery partner registration successful", token, UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId(), partner.getEmail()); 
     }
 
     @Override
     public ResponseDto login(String email, String password) { 
     	DeliveryPartner partner = deliveryPartnerRepository.findByEmail(email)
     			.orElseThrow(() -> new AccountNotFoundException("Delivery partner account not found with this email!!!"));
+		userStatusSupport.ensureActive(userStatusSupport.resolve(partner.getStatus(), partner.getIsActive()), "Delivery partner account");
     	
     	if(!passwordEncoder.matches(password, partner.getPasswordHash())) {
     		throw new PasswordNotMatchException("Wrong Password");
@@ -73,12 +78,13 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
     	
     	partner.setCreatedAt(LocalDateTime.now());
     	partner.setIsActive(true);
+		partner.setStatus(UserStatus.ACTIVE);
     	
     	deliveryPartnerRepository.save(partner);
     	
-    	String token = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId()); 
+    	String token = jwtService.generateToken(partner.getEmail(), UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId()); 
         
-        return new ResponseDto("Delivery partner login successful", token, "DELIVERY_AGENT", partner.getPartnerId(), partner.getEmail());  
+        return new ResponseDto("Delivery partner login successful", token, UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId(), partner.getEmail());  
     }
 
     @Override
@@ -95,19 +101,20 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
     	String email = jwtService.extractEmailFromToken(token);
     	DeliveryPartner partner = deliveryPartnerRepository.findByEmail(email)
     			.orElseThrow(() -> new RuntimeException("Delivery partner not found"));
+		userStatusSupport.ensureActive(userStatusSupport.resolve(partner.getStatus(), partner.getIsActive()), "Delivery partner account");
     	
     	UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 partner.getEmail(),
                 partner.getPasswordHash(),
-                List.of(new SimpleGrantedAuthority("ROLE_DELIVERY_AGENT"))
+                List.of(new SimpleGrantedAuthority("ROLE_DELIVERY_PARTNER"))
         );
     	
     	if(!jwtService.validateToken(token, userDetails)) {
     		throw new RuntimeException("Invalid or expired token");
     	}
     	
-    	String refreshedToken = jwtService.generateToken(partner.getEmail(), "DELIVERY_AGENT", partner.getPartnerId());
-    	return new ResponseDto("New Token: ", refreshedToken, "DELIVERY_AGENT", partner.getPartnerId(), partner.getEmail()); 
+    	String refreshedToken = jwtService.generateToken(partner.getEmail(), UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId());
+    	return new ResponseDto("New Token: ", refreshedToken, UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId(), partner.getEmail()); 
     }
 
 	@Override
@@ -172,6 +179,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 				.orElseThrow(() -> new AccountNotFoundException("Delivery partner not found with id: " + partnerId));
 		
 		partner.setIsActive(false);
+		partner.setStatus(UserStatus.SUSPENDED);
 		deliveryPartnerRepository.save(partner);
 		
 		return new ResponseDto("Account deactivated successfully", "");
