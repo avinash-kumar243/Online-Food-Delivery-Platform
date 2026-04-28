@@ -23,18 +23,18 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping("/cart")
+@RequestMapping({"/cart", "/api/v1/cart"})
 @RequiredArgsConstructor
 public class CartResource {
 
     private final CartService cartService;
 
-    @GetMapping("/{customerId}")
+    @GetMapping({"/{customerId}", "/customer/{customerId}"})
     public ResponseEntity<CartResponse> getCart(@PathVariable Long customerId) {
         return ResponseEntity.ok(cartService.getCartByCustomerId(customerId));
     }
 
-    @PostMapping("/add")
+    @PostMapping({"/add", "/items"})
     public ResponseEntity<CartResponse> addItem(@Valid @RequestBody AddCartItemRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(cartService.addItemToCart(request));
     }
@@ -44,7 +44,15 @@ public class CartResource {
         return ResponseEntity.ok(cartService.updateItemQuantity(request));
     }
 
-    @DeleteMapping("/remove-item/{itemId}")
+    @PutMapping("/items/{itemId}/quantity")
+    public ResponseEntity<CartResponse> updateQuantityByPath(@PathVariable Long itemId,
+                                                             @Valid @RequestBody UpdateCartItemQuantityRequest request) {
+        return ResponseEntity.ok(cartService.updateItemQuantity(
+            new UpdateCartItemQuantityRequest(request.customerId(), itemId, request.quantity())
+        ));
+    }
+
+    @DeleteMapping({"/remove-item/{itemId}", "/items/{itemId}"})
     public ResponseEntity<CartResponse> removeItem(@PathVariable Long itemId) {
         return ResponseEntity.ok(cartService.removeItem(itemId));
     }
@@ -54,7 +62,7 @@ public class CartResource {
         return ResponseEntity.ok(cartService.applyPromoCode(request.customerId(), request.promoCode()));
     }
 
-    @DeleteMapping("/clear/{customerId}")
+    @DeleteMapping({"/clear/{customerId}", "/customer/{customerId}/clear"})
     public ResponseEntity<Void> clearCart(@PathVariable Long customerId) {
         cartService.clearCart(customerId);
         return ResponseEntity.noContent().build();
