@@ -26,5 +26,7 @@ public interface PaymentService {
 
     List<PaymentResponse> getPaymentsByStatus(PaymentStatus status);
 
+    List<PaymentResponse> getAllPayments();
+
     void handleWebhookEvent(String payload, String signature);
 }
