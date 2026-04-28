@@ -25,15 +25,90 @@ spring:
               predicates:
                 - Path=/auth/**
 
+            - id: auth-service-oauth2
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/oauth2/**
+
+            - id: auth-service-login
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/login/**
+
+            - id: restaurant-service
+              uri: lb://RESTAURANT-SERVICE
+              predicates:
+                - Path=/api/v1/restaurants/**
+              filters:
+                - AuthenticationFilter
+
             - id: menu-service
               uri: lb://MENU-SERVICE
               predicates:
-                - Path=/api/v1/menus/**
+                - Path=/api/v1/menu/**
+              filters:
+                - AuthenticationFilter
+
+            - id: cart-service
+              uri: lb://CART-SERVICE
+              predicates:
+                - Path=/api/v1/cart/**
+              filters:
+                - AuthenticationFilter
+
+            - id: order-service
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/api/v1/orders/**
+              filters:
+                - AuthenticationFilter
 
             - id: payment-service
               uri: lb://PAYMENT-SERVICE
               predicates:
                 - Path=/api/v1/payments/**
+              filters:
+                - AuthenticationFilter
+
+            - id: delivery-service
+              uri: lb://DELIVERY-SERVICE
+              predicates:
+                - Path=/api/v1/agents/**
+              filters:
+                - AuthenticationFilter
+
+            - id: admin-users
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/v1/admin/users/**
+              filters:
+                - AuthenticationFilter
+
+            - id: admin-restaurants
+              uri: lb://RESTAURANT-SERVICE
+              predicates:
+                - Path=/api/v1/admin/restaurants/**
+              filters:
+                - AuthenticationFilter
+
+            - id: admin-agents
+              uri: lb://DELIVERY-SERVICE
+              predicates:
+                - Path=/api/v1/admin/agents/**
+              filters:
+                - AuthenticationFilter
+
+            - id: admin-orders
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/api/v1/admin/orders/**
+              filters:
+                - AuthenticationFilter
+
+            - id: admin-payments
+              uri: lb://PAYMENT-SERVICE
+              predicates:
+                - Path=/api/v1/admin/payments/**
               filters:
                 - AuthenticationFilter
 
