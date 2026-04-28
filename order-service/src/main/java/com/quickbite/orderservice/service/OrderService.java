@@ -22,9 +22,15 @@ public interface OrderService {
 
     List<OrderResponse> getAvailableOrders();
 
+    List<OrderResponse> getAllOrders();
+
     OrderResponse updateOrderStatus(Long orderId, OrderStatus status);
 
+    OrderResponse updatePaymentStatus(Long orderId, String paymentStatus);
+
     OrderResponse assignDeliveryAgent(Long orderId, Long deliveryAgentId);
+
+    OrderResponse cancelOrder(Long orderId);
 
     OrderResponse reorder(Long orderId);
 
