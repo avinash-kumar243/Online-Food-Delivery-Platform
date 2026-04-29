@@ -23,6 +23,9 @@ import com.quickbite.delivery.entity.VerificationStatus;
 import com.quickbite.delivery.exception.BadRequestException;
 import com.quickbite.delivery.exception.ConflictException;
 import com.quickbite.delivery.exception.ResourceNotFoundException;
+import com.quickbite.delivery.messaging.GenericEventPublisher;
+import com.quickbite.delivery.messaging.dto.DeliveryEventDTO;
+import com.quickbite.delivery.messaging.dto.OrderEventDTO;
 import com.quickbite.delivery.repository.DeliveryRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,7 @@ public class DeliveryServiceImpl implements DeliveryService {
 	private final DeliveryRepository deliveryRepository;
 	private final AuthServiceClient authServiceClient;
 	private final OrderServiceClient orderServiceClient;
+	private final GenericEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
@@ -194,8 +198,14 @@ public class DeliveryServiceImpl implements DeliveryService {
 
 		agent.setAvailable(false);
 		agent.setActiveOrderId(request.orderId());
-
-		return toResponse(deliveryRepository.save(agent));
+		DeliveryAgent savedAgent = deliveryRepository.save(agent);
+		eventPublisher.send("delivery.assigned", new DeliveryEventDTO(
+			request.orderId(),
+			savedAgent.getAgentId(),
+			"ASSIGNED",
+			savedAgent.getCurrentLatitude() + "," + savedAgent.getCurrentLongitude()
+		));
+		return toResponse(savedAgent);
 	}
 
 	@Override
@@ -205,17 +215,17 @@ public class DeliveryServiceImpl implements DeliveryService {
 		if (agent.getVerificationStatus() != VerificationStatus.VERIFIED) {
 			throw new ConflictException("Only verified delivery partners can accept orders");
 		}
-		if (!agent.isAvailable()) {
-			throw new ConflictException("Delivery partner must be online before accepting orders");
-		}
-		if (agent.getActiveOrderId() != null) {
-			throw new ConflictException("Delivery partner already has an active delivery");
+		if (agent.getActiveOrderId() == null || !agent.getActiveOrderId().equals(orderId)) {
+			throw new ConflictException("Delivery partner is not assigned to this order");
 		}
 
-		orderServiceClient.assignAgent(orderId, new AssignOrderRequestDto(agentId));
-		agent.setAvailable(false);
-		agent.setActiveOrderId(orderId);
-		return toResponse(deliveryRepository.save(agent));
+		eventPublisher.send("order.pickedup", new DeliveryEventDTO(
+			orderId,
+			agentId,
+			"PICKED_UP",
+			agent.getCurrentLatitude() + "," + agent.getCurrentLongitude()
+		));
+		return toResponse(agent);
 	}
 
 	@Override
@@ -225,12 +235,20 @@ public class DeliveryServiceImpl implements DeliveryService {
 		if (agent.getActiveOrderId() == null) {
 			throw new ConflictException("Delivery agent does not have an active delivery to complete");
 		}
+		Long completedOrderId = agent.getActiveOrderId();
 
 		agent.setActiveOrderId(null);
 		agent.setAvailable(true);
 		agent.setTotalDeliveries(agent.getTotalDeliveries() + 1);
-
-		return toResponse(deliveryRepository.save(agent));
+		DeliveryAgent savedAgent = deliveryRepository.save(agent);
+		eventPublisher.send("order.delivered", new OrderEventDTO(
+			completedOrderId,
+			null,
+			null,
+			null,
+			java.time.LocalDateTime.now()
+		));
+		return toResponse(savedAgent);
 	}
 
 	@Override
