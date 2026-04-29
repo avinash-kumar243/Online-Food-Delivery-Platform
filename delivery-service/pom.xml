@@ -12,7 +12,7 @@
 	</parent>
 
 	<groupId>com.quickbite</groupId>
-	<artifactId>delivery-agent-service</artifactId>
+	<artifactId>delivery-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>delivery-service</name>
 	<description>Delivery agent management service for QuickBite</description>
@@ -63,6 +63,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
 
 		<dependency>
