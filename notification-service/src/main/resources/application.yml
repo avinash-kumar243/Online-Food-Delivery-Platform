@@ -24,14 +24,19 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
+        acknowledge-mode: manual
         default-requeue-rejected: false
       direct:
         default-requeue-rejected: false
   mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:1025}
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
     username: ${SMTP_USERNAME:}
     password: ${SMTP_PASSWORD:}
     properties:
@@ -68,10 +73,6 @@ springdoc:
     path: /swagger-ui/index.html
 
 quickbite:
-  rabbitmq:
-    queues:
-      order-events: order_events
-      delivery-events: delivery_events
   sms:
     provider: ${SMS_PROVIDER:placeholder}
     endpoint: ${SMS_GATEWAY_ENDPOINT:https://example-sms-gateway.local}
