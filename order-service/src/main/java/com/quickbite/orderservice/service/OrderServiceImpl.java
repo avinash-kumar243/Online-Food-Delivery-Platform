@@ -22,6 +22,8 @@ import com.quickbite.orderservice.entity.OrderItem;
 import com.quickbite.orderservice.entity.OrderStatus;
 import com.quickbite.orderservice.exception.BadRequestException;
 import com.quickbite.orderservice.exception.OrderNotFoundException;
+import com.quickbite.orderservice.messaging.GenericEventPublisher;
+import com.quickbite.orderservice.messaging.dto.OrderEventDTO;
 import com.quickbite.orderservice.repository.OrderRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,7 @@ public class OrderServiceImpl implements OrderService {
     private static final Map<OrderStatus, Set<OrderStatus>> VALID_STATUS_TRANSITIONS = buildTransitions();
 
     private final OrderRepository orderRepository;
+    private final GenericEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -75,7 +78,9 @@ public class OrderServiceImpl implements OrderService {
             .map(this::toOrderItem)
             .forEach(order::addItem);
 
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        eventPublisher.send("order.created", toOrderEvent(savedOrder));
+        return toResponse(savedOrder);
     }
 
     @Override
@@ -295,6 +300,16 @@ public class OrderServiceImpl implements OrderService {
 
     private Comparator<Order> orderDateDesc() {
         return Comparator.comparing(Order::getOrderDate).reversed();
+    }
+
+    private OrderEventDTO toOrderEvent(Order order) {
+        return new OrderEventDTO(
+            order.getOrderId(),
+            order.getCustomerId(),
+            order.getRestaurantId(),
+            order.getFinalAmount(),
+            LocalDateTime.now()
+        );
     }
 
     private static Map<OrderStatus, Set<OrderStatus>> buildTransitions() {
