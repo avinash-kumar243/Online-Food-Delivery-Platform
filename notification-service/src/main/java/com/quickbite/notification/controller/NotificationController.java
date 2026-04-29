@@ -1,4 +1,4 @@
-package com.quickbite.notification.resource;
+package com.quickbite.notification.controller;
 
 import java.util.List;
 
@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
-public class NotificationResource {
+public class NotificationController {
 
     private final NotificationService notificationService;
 
