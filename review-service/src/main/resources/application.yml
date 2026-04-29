@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: review-service
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${PORT:8089}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: review-service:8089
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  packages-to-scan: com.quickbite.review.resource
+  swagger-ui:
+    path: /swagger-ui/index.html
+
+quickbite:
+  clients:
+    order-service:
+      name: order-service
+      path: /orders
+    customer-service:
+      name: customer-service
+      path: /customers
+    restaurant-service:
+      name: restaurant-service
+      path: /restaurants
+    agent-service:
+      name: agent-service
+      path: /agents
