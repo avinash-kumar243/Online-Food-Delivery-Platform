@@ -140,6 +140,11 @@ public class DeliveryResource {
 		return ResponseEntity.ok(deliveryService.acceptOrder(agentId, orderId));
 	}
 
+	@PostMapping("/{agentId}/complete-delivery")
+	public ResponseEntity<DeliveryAgentResponse> completeDelivery(@PathVariable Long agentId) {
+		return ResponseEntity.ok(deliveryService.completeDelivery(agentId));
+	}
+
 	@GetMapping("/active")
 	@Operation(summary = "List agents currently on active deliveries")
 	public ResponseEntity<List<DeliveryAgentResponse>> getActiveAgents() {
