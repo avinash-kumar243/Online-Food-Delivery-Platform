@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.MailException;
@@ -25,10 +26,10 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+
+@Slf4j
 @Transactional
 public class NotificationServiceImpl implements NotificationService {
-
-    private static final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);
 
     private final NotificationRepository notificationRepository;
     private final JavaMailSender javaMailSender;
@@ -60,6 +61,7 @@ public class NotificationServiceImpl implements NotificationService {
             mailMessage.setSubject(notification.getTitle());
             mailMessage.setText(notification.getMessage());
             javaMailSender.send(mailMessage);
+            log.info("Mail Send to success");
         } catch (MailException ex) {
             log.warn("Email placeholder dispatch failed for notificationId={}: {}", notification.getNotificationId(), ex.getMessage());
         }
