@@ -25,13 +25,6 @@ spring:
       hibernate:
         format_sql: true
 
-  boot:
-    admin:
-      client:
-        url: ${ADMIN_SERVER_URL:http://localhost:9090}
-#        instance:
-#          service-base-url: ${SERVICE_BASE_URL}
-
 eureka:
   client:
     service-url:
