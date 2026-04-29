@@ -23,6 +23,8 @@ import com.quickbite.payment.enums.PaymentStatus;
 import com.quickbite.payment.exception.PaymentException;
 import com.quickbite.payment.exception.ResourceNotFoundException;
 import com.quickbite.payment.gateway.RazorpayGateway;
+import com.quickbite.payment.messaging.GenericEventPublisher;
+import com.quickbite.payment.messaging.dto.PaymentEventDTO;
 import com.quickbite.payment.repository.PaymentRepository;
 import com.quickbite.payment.service.PaymentService;
 import com.quickbite.payment.service.WalletService;
@@ -37,17 +39,20 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderServiceClient orderServiceClient;
     private final WalletService walletService;
     private final ObjectMapper objectMapper;
+    private final GenericEventPublisher eventPublisher;
 
     public PaymentServiceImpl(PaymentRepository paymentRepository,
                               RazorpayGateway razorpayGateway,
                               OrderServiceClient orderServiceClient,
                               WalletService walletService,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              GenericEventPublisher eventPublisher) {
         this.paymentRepository = paymentRepository;
         this.razorpayGateway = razorpayGateway;
         this.orderServiceClient = orderServiceClient;
         this.walletService = walletService;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -106,7 +111,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaidAt(LocalDateTime.now());
 
         Payment savedPayment = paymentRepository.save(payment);
-        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), new OrderPaymentStatusRequest(savedPayment.getStatus().name()));
+        publishPaymentSuccess(savedPayment);
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -161,7 +166,6 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         Payment savedPayment = paymentRepository.save(payment);
-        orderServiceClient.updateOrderPaymentStatus(savedPayment.getOrderId(), new OrderPaymentStatusRequest(savedPayment.getStatus().name()));
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -240,8 +244,8 @@ public class PaymentServiceImpl implements PaymentService {
         if (payment.getPaidAt() == null) {
             payment.setPaidAt(LocalDateTime.now());
         }
-        paymentRepository.save(payment);
-        orderServiceClient.updateOrderPaymentStatus(payment.getOrderId(), new OrderPaymentStatusRequest(payment.getStatus().name()));
+        Payment savedPayment = paymentRepository.save(payment);
+        publishPaymentSuccess(savedPayment);
     }
 
     private void handlePaymentFailed(JsonNode root) {
@@ -269,8 +273,16 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setStatus(PaymentStatus.REFUNDED);
             payment.setRefundedAt(LocalDateTime.now());
             paymentRepository.save(payment);
-            orderServiceClient.updateOrderPaymentStatus(payment.getOrderId(), new OrderPaymentStatusRequest(payment.getStatus().name()));
         });
+    }
+
+    private void publishPaymentSuccess(Payment payment) {
+        eventPublisher.send("payment.success", new PaymentEventDTO(
+            payment.getOrderId(),
+            payment.getTransactionId(),
+            payment.getStatus().name(),
+            payment.getAmount()
+        ));
     }
 
     private Payment findByWebhookIds(String razorpayPaymentId, String razorpayOrderId) {
