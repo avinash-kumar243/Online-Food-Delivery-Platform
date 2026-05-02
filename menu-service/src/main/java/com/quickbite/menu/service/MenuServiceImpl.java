@@ -23,7 +23,7 @@ import com.quickbite.menu.exception.BadRequestException;
 import com.quickbite.menu.exception.NotFoundException;
 import com.quickbite.menu.repository.MenuCategoryRepository;
 import com.quickbite.menu.repository.MenuItemRepository;
-import com.quickbite.menu.util.MenuMapper;
+import com.quickbite.menu.config.MenuMapper;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
