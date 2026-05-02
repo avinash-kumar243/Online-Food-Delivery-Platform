@@ -1,4 +1,4 @@
-package com.quickbite.delivery.resource;
+package com.quickbite.delivery.controller;
 
 import java.util.List;
 
@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/admin/agents")
-public class AdminDeliveryResource {
+public class AdminDeliveryController {
 
     private final DeliveryService deliveryService;
 
