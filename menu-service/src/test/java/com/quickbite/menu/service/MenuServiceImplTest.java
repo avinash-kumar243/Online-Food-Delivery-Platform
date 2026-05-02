@@ -17,7 +17,9 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
+import com.quickbite.menu.client.RestaurantServiceClient;
 import com.quickbite.menu.dto.MenuItemRequest;
+import com.quickbite.menu.dto.RestaurantSnapshotDto;
 import com.quickbite.menu.entity.MenuCategory;
 import com.quickbite.menu.entity.MenuItem;
 import com.quickbite.menu.exception.BadRequestException;
@@ -33,13 +35,40 @@ class MenuServiceImplTest {
     @Mock
     private MenuItemRepository itemRepository;
 
+    @Mock
+    private RestaurantServiceClient restaurantServiceClient;
+
     private MenuServiceImpl menuService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         CacheManager cacheManager = new ConcurrentMapCacheManager("menuByRestaurant", "menuItem");
-        menuService = new MenuServiceImpl(categoryRepository, itemRepository, new MenuMapper(), cacheManager);
+        menuService = new MenuServiceImpl(categoryRepository, itemRepository, new MenuMapper(), cacheManager, restaurantServiceClient);
+        when(restaurantServiceClient.getRestaurant(1L))
+            .thenReturn(new RestaurantSnapshotDto(
+                1L,
+                1L,
+                "Test Restaurant",
+                "Test description",
+                "Indian",
+                "Test address",
+                "Bengaluru",
+                12.9716,
+                77.5946,
+                "9999999999",
+                4.5,
+                5.0,
+                true,
+                true,
+                "APPROVED",
+                null,
+                null,
+                null,
+                null,
+                100,
+                30
+            ));
     }
 
     @Test
