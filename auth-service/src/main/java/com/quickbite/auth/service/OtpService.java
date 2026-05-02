@@ -13,35 +13,35 @@ public class OtpService {
     private static final long OTP_VALIDITY_MS = 60 * 1000;
 
     public String generateOtp(String email) {
-        OtpData existing = otpStore.get(email);
-
-        if (existing != null && System.currentTimeMillis() - existing.timestamp < OTP_VALIDITY_MS) {
-            return existing.otp;
-        }
-
         String otp = String.format("%06d", new Random().nextInt(1000000));
         otpStore.put(email, new OtpData(otp, System.currentTimeMillis()));
         return otp;
     }
 
-    public boolean verifyOtp(String email, String otp) {
+    public OtpVerificationResult verifyOtp(String email, String otp) {
         OtpData data = otpStore.get(email);
 
         if (data == null) {
-            return false;
+            return OtpVerificationResult.EXPIRED;
         }
 
         if (System.currentTimeMillis() - data.timestamp > OTP_VALIDITY_MS) {
             otpStore.remove(email);
-            return false;
+            return OtpVerificationResult.EXPIRED;
         }
 
         if (!data.otp.equals(otp)) {
-            return false;
+            return OtpVerificationResult.INVALID;
         }
 
         otpStore.remove(email);
-        return true;
+        return OtpVerificationResult.VALID;
+    }
+
+    public enum OtpVerificationResult {
+        VALID,
+        INVALID,
+        EXPIRED
     }
 
     private static class OtpData {
