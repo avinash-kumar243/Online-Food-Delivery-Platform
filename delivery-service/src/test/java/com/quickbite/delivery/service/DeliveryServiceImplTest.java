@@ -17,10 +17,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.quickbite.delivery.client.AuthServiceClient;
+import com.quickbite.delivery.client.OrderServiceClient;
 import com.quickbite.delivery.dto.NearbyAgentResponse;
+import com.quickbite.delivery.dto.OrderSnapshotDto;
 import com.quickbite.delivery.dto.OrderAssignmentRequest;
 import com.quickbite.delivery.dto.RegisterDeliveryAgentRequest;
 import com.quickbite.delivery.entity.DeliveryAgent;
+import com.quickbite.delivery.entity.VerificationStatus;
+import com.quickbite.delivery.messaging.GenericEventPublisher;
 import com.quickbite.delivery.repository.DeliveryRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +33,15 @@ class DeliveryServiceImplTest {
 
 	@Mock
 	private DeliveryRepository deliveryRepository;
+
+	@Mock
+	private AuthServiceClient authServiceClient;
+
+	@Mock
+	private OrderServiceClient orderServiceClient;
+
+	@Mock
+	private GenericEventPublisher eventPublisher;
 
 	@InjectMocks
 	private DeliveryServiceImpl deliveryService;
@@ -77,6 +91,7 @@ class DeliveryServiceImplTest {
 			.currentLongitude(77.5933)
 			.available(true)
 			.verified(true)
+			.verificationStatus(VerificationStatus.VERIFIED)
 			.avgRating(4.7)
 			.totalDeliveries(120)
 			.build();
@@ -92,6 +107,7 @@ class DeliveryServiceImplTest {
 			.currentLongitude(77.6050)
 			.available(true)
 			.verified(true)
+			.verificationStatus(VerificationStatus.VERIFIED)
 			.avgRating(4.5)
 			.totalDeliveries(95)
 			.build();
@@ -107,6 +123,7 @@ class DeliveryServiceImplTest {
 			.currentLongitude(77.5940)
 			.available(true)
 			.verified(false)
+			.verificationStatus(VerificationStatus.PENDING)
 			.build();
 
 		when(deliveryRepository.findByIsAvailableTrue())
@@ -133,6 +150,7 @@ class DeliveryServiceImplTest {
 			.currentLongitude(77.5946)
 			.available(true)
 			.verified(true)
+			.verificationStatus(VerificationStatus.VERIFIED)
 			.avgRating(4.8)
 			.totalDeliveries(50)
 			.build();
@@ -144,6 +162,36 @@ class DeliveryServiceImplTest {
 
 		assertFalse(response.isAvailable());
 		assertEquals(9001L, response.activeOrderId());
+		verify(deliveryRepository).save(agent);
+	}
+
+	@Test
+	void acceptOrderShouldClaimReadyOrderForFirstOnlineAgent() {
+		DeliveryAgent agent = DeliveryAgent.builder()
+			.agentId(11L)
+			.userId(302L)
+			.fullName("Claiming Agent")
+			.phone("5555555555")
+			.vehicleType("Bike")
+			.vehicleNumber("KA-01-CLAIM")
+			.currentLatitude(12.9716)
+			.currentLongitude(77.5946)
+			.available(true)
+			.verified(true)
+			.verificationStatus(VerificationStatus.VERIFIED)
+			.avgRating(4.9)
+			.totalDeliveries(20)
+			.build();
+
+		when(deliveryRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(agent));
+		when(orderServiceClient.assignAgent(7001L, new com.quickbite.delivery.dto.AssignOrderRequestDto(11L)))
+			.thenReturn(new OrderSnapshotDto(7001L, 21L, 31L, 11L));
+		when(deliveryRepository.save(agent)).thenReturn(agent);
+
+		var response = deliveryService.acceptOrder(11L, 7001L);
+
+		assertFalse(response.isAvailable());
+		assertEquals(7001L, response.activeOrderId());
 		verify(deliveryRepository).save(agent);
 	}
 }
