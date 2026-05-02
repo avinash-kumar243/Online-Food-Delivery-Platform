@@ -6,10 +6,11 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.quickbite.delivery.dto.AssignOrderRequestDto;
+import com.quickbite.delivery.dto.OrderSnapshotDto;
 
 @FeignClient(name = "order-service", path = "/api/v1/orders")
 public interface OrderServiceClient {
 
     @PutMapping("/{orderId}/assign-agent")
-    void assignAgent(@PathVariable("orderId") Long orderId, @RequestBody AssignOrderRequestDto request);
+    OrderSnapshotDto assignAgent(@PathVariable("orderId") Long orderId, @RequestBody AssignOrderRequestDto request);
 }
