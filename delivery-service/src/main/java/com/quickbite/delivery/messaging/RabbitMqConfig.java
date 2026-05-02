@@ -42,11 +42,20 @@ public class RabbitMqConfig {
             .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.RESTAURANT_ACCEPTED_QUEUE + ".dlq"))
             .build();
         Queue restaurantAcceptedDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.RESTAURANT_ACCEPTED_QUEUE + ".dlq").build();
+        Queue orderDeliveredQueue = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE)
+            .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq"))
+            .build();
+        Queue orderDeliveredDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq").build();
         return new Declarables(
             restaurantAcceptedQueue,
             restaurantAcceptedDlq,
+            orderDeliveredQueue,
+            orderDeliveredDlq,
             BindingBuilder.bind(restaurantAcceptedQueue).to(quickbiteOrderExchange).with("restaurant.accepted"),
+            BindingBuilder.bind(orderDeliveredQueue).to(quickbiteOrderExchange).with("order.delivered"),
             BindingBuilder.bind(restaurantAcceptedDlq).to(quickbiteOrderDeadLetterExchange).with(restaurantAcceptedDlq.getName())
+            ,
+            BindingBuilder.bind(orderDeliveredDlq).to(quickbiteOrderDeadLetterExchange).with(orderDeliveredDlq.getName())
         );
     }
 
