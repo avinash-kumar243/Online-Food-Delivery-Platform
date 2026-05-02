@@ -1,11 +1,16 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: api-gateway
+
   cloud:
     gateway:
       server:
         webflux:
           globalcors:
+            add-to-simple-url-handler-mapping: true
             cors-configurations:
               '[/**]':
                 allowedOrigins:
@@ -14,16 +19,32 @@ spring:
                   - GET
                   - POST
                   - PUT
+                  - PATCH
                   - DELETE
                   - OPTIONS
-                allowedHeaders: "*"
+                allowedHeaders:
+                  - "*"
                 allowCredentials: true
-
+                maxAge: 3600
           routes:
             - id: auth-service
               uri: lb://AUTH-SERVICE
               predicates:
                 - Path=/auth/**
+
+            - id: auth-service-admin
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/v1/admin/users/**
+              filters:
+                - AuthenticationFilter
+
+            - id: auth-service-internal
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/v1/internal/users/**
+              filters:
+                - AuthenticationFilter
 
             - id: auth-service-oauth2
               uri: lb://AUTH-SERVICE
@@ -39,6 +60,13 @@ spring:
               uri: lb://RESTAURANT-SERVICE
               predicates:
                 - Path=/api/v1/restaurants/**
+              filters:
+                - AuthenticationFilter
+
+            - id: restaurant-service-admin
+              uri: lb://RESTAURANT-SERVICE
+              predicates:
+                - Path=/api/v1/admin/restaurants/**
               filters:
                 - AuthenticationFilter
 
@@ -63,10 +91,24 @@ spring:
               filters:
                 - AuthenticationFilter
 
+            - id: order-service-admin
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/api/v1/admin/orders/**
+              filters:
+                - AuthenticationFilter
+
             - id: payment-service
               uri: lb://PAYMENT-SERVICE
               predicates:
                 - Path=/api/v1/payments/**
+              filters:
+                - AuthenticationFilter
+
+            - id: payment-service-admin
+              uri: lb://PAYMENT-SERVICE
+              predicates:
+                - Path=/api/v1/admin/payments/**
               filters:
                 - AuthenticationFilter
 
@@ -77,58 +119,34 @@ spring:
               filters:
                 - AuthenticationFilter
 
-            - id: admin-users
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/v1/admin/users/**
-              filters:
-                - AuthenticationFilter
-
-            - id: admin-restaurants
-              uri: lb://RESTAURANT-SERVICE
-              predicates:
-                - Path=/api/v1/admin/restaurants/**
-              filters:
-                - AuthenticationFilter
-
-            - id: admin-agents
+            - id: delivery-service-admin
               uri: lb://DELIVERY-SERVICE
               predicates:
                 - Path=/api/v1/admin/agents/**
               filters:
                 - AuthenticationFilter
 
-            - id: admin-orders
-              uri: lb://ORDER-SERVICE
-              predicates:
-                - Path=/api/v1/admin/orders/**
-              filters:
-                - AuthenticationFilter
-
-            - id: admin-payments
-              uri: lb://PAYMENT-SERVICE
-              predicates:
-                - Path=/api/v1/admin/payments/**
-              filters:
-                - AuthenticationFilter
-
-server:
-  port: 8080
-
 jwt:
-  secret: ${JWT_SECRET}
-  expiration-ms: ${JWT_EXPIRATION_MS}
+  secret: ${JWT_SECRET:local-dev-secret-key-local-dev-secret-key}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+    hostname: localhost
+    ip-address: 127.0.0.1
+    instance-id: ${spring.application.name}:${server.port}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,gateway
   endpoint:
+    health:
+      show-details: always
     gateway:
       access: unrestricted
