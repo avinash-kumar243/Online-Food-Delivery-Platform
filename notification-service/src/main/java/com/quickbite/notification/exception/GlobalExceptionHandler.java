@@ -31,6 +31,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of());
     }
 
+    @ExceptionHandler(NotificationDispatchException.class)
+    public ResponseEntity<ApiError> handleDispatch(NotificationDispatchException ex) {
+        return build(HttpStatus.BAD_GATEWAY, ex.getMessage(), List.of());
+    }
+
     private ResponseEntity<ApiError> build(HttpStatus status, String message, List<String> details) {
         ApiError error = new ApiError(LocalDateTime.now(), status.value(), status.getReasonPhrase(), message, details);
         return ResponseEntity.status(status).body(error);
