@@ -12,7 +12,11 @@ public interface CartService {
 
     CartResponse updateItemQuantity(UpdateCartItemQuantityRequest request);
 
+    CartResponse updateItemQuantity(Long customerId, Long menuItemId, Integer quantity);
+
     CartResponse removeItem(Long itemId);
+
+    CartResponse removeItem(Long customerId, Long menuItemId);
 
     CartResponse applyPromoCode(Long customerId, String promoCode);
 
