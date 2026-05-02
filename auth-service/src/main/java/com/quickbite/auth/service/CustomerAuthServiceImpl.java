@@ -189,8 +189,12 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 
 	@Override
 	public ResponseDto verifyOtp(String email, String otp) {
-		if (!otpService.verifyOtp(email, otp)) {
-			throw new RuntimeException("Invalid or expired OTP");
+		OtpService.OtpVerificationResult result = otpService.verifyOtp(email, otp);
+		if (result == OtpService.OtpVerificationResult.INVALID) {
+			throw new RuntimeException("Wrong otp. Please send otp again.");
+		}
+		if (result == OtpService.OtpVerificationResult.EXPIRED) {
+			throw new RuntimeException("Wrong otp. Please send otp again.");
 		}
 		return new ResponseDto("OTP verified successfully", "");
 	}
