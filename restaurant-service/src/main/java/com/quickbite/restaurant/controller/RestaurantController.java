@@ -29,9 +29,9 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping({"/restaurants", "/api/v1/restaurants"})
+@RequestMapping("/api/v1/restaurants")
 @RequiredArgsConstructor
-public class RestaurantResource {
+public class RestaurantController {
 
     private final RestaurantService restaurantService;
 
@@ -115,8 +115,8 @@ public class RestaurantResource {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRestaurant(@PathVariable Long id) {
+    public ResponseEntity<String> deleteRestaurant(@PathVariable Long id) {
         restaurantService.deleteRestaurant(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("Restaurant deleted successfully");
     }
 }
