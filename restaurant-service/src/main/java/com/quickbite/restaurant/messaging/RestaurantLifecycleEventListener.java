@@ -37,8 +37,8 @@ public class RestaurantLifecycleEventListener {
         try {
             eventPublisher.send("restaurant.accepted", new OrderEventDTO(
                 event.orderId(),
-                null,
-                null,
+                event.customerId(),
+                event.restaurantId(),
                 event.amount(),
                 LocalDateTime.now()
             ));
