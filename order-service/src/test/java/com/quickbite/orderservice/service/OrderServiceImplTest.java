@@ -3,6 +3,7 @@ package com.quickbite.orderservice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -22,6 +23,8 @@ import com.quickbite.orderservice.entity.Order;
 import com.quickbite.orderservice.entity.OrderItem;
 import com.quickbite.orderservice.entity.OrderStatus;
 import com.quickbite.orderservice.exception.BadRequestException;
+import com.quickbite.orderservice.exception.ConflictException;
+import com.quickbite.orderservice.messaging.GenericEventPublisher;
 import com.quickbite.orderservice.repository.OrderRepository;
 
 class OrderServiceImplTest {
@@ -29,12 +32,15 @@ class OrderServiceImplTest {
     @Mock
     private OrderRepository orderRepository;
 
+    @Mock
+    private GenericEventPublisher eventPublisher;
+
     private OrderServiceImpl orderService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        orderService = new OrderServiceImpl(orderRepository);
+        orderService = new OrderServiceImpl(orderRepository, eventPublisher);
     }
 
     @Test
@@ -107,19 +113,71 @@ class OrderServiceImplTest {
             .discount(new BigDecimal("10.00"))
             .finalAmount(new BigDecimal("190.00"))
             .modeOfPayment("CARD")
-            .orderStatus(OrderStatus.CONFIRMED)
+            .orderStatus(OrderStatus.READY_FOR_PICKUP)
             .orderDate(LocalDateTime.now())
             .estimatedDelivery(LocalDateTime.now().plusMinutes(50))
             .deliveryAddress("Brigade Road")
             .items(new ArrayList<>())
             .build();
 
-        when(orderRepository.findById(11L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = orderService.assignDeliveryAgent(11L, 90L);
 
         assertThat(response.deliveryAgentId()).isEqualTo(90L);
+    }
+
+    @Test
+    void assignDeliveryAgentShouldRejectSecondPartnerClaim() {
+        Order order = Order.builder()
+            .orderId(12L)
+            .customerId(4L)
+            .restaurantId(31L)
+            .deliveryAgentId(77L)
+            .totalAmount(new BigDecimal("220.00"))
+            .discount(new BigDecimal("0.00"))
+            .finalAmount(new BigDecimal("220.00"))
+            .modeOfPayment("COD")
+            .orderStatus(OrderStatus.READY_FOR_PICKUP)
+            .orderDate(LocalDateTime.now())
+            .estimatedDelivery(LocalDateTime.now().plusMinutes(50))
+            .deliveryAddress("Indiranagar")
+            .items(new ArrayList<>())
+            .build();
+
+        when(orderRepository.findByIdForUpdate(12L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.assignDeliveryAgent(12L, 88L))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("already been accepted");
+    }
+
+    @Test
+    void updateOrderStatusShouldPublishDeliveredEvent() {
+        Order order = Order.builder()
+            .orderId(15L)
+            .customerId(5L)
+            .restaurantId(25L)
+            .deliveryAgentId(100L)
+            .totalAmount(new BigDecimal("180.00"))
+            .discount(new BigDecimal("0.00"))
+            .finalAmount(new BigDecimal("180.00"))
+            .modeOfPayment("COD")
+            .orderStatus(OrderStatus.OUT_FOR_DELIVERY)
+            .orderDate(LocalDateTime.now())
+            .estimatedDelivery(LocalDateTime.now().plusMinutes(20))
+            .deliveryAddress("Indore")
+            .items(new ArrayList<>())
+            .build();
+
+        when(orderRepository.findById(15L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = orderService.updateOrderStatus(15L, OrderStatus.DELIVERED);
+
+        assertThat(response.orderStatus()).isEqualTo(OrderStatus.DELIVERED);
+        verify(eventPublisher).send(org.mockito.ArgumentMatchers.eq("order.delivered"), any());
     }
 
     @Test
