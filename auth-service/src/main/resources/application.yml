@@ -4,11 +4,8 @@ server:
 spring:
   application:
     name: auth-service
-
-  datasource:
-    url: ${DB_URL:jdbc:h2:mem:authdb}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+  profiles:
+    default: dev
 
   jpa:
     hibernate:
@@ -34,18 +31,15 @@ spring:
           google:
             user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
             user-name-attribute: email
-
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${EMAIL_URL}
-    password: ${EMAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
 
 # Service Discovery (Eureka)
 eureka:
@@ -61,9 +55,8 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS}
 
-# Frontend and Backend URLs for CORS and Redirects
+# Frontend URL for redirects
 frontend-url: ${FRONTEND_URL:http://localhost:4200}
-backend-url: ${BACKEND_URL:http://localhost:8081}
 
 springdoc:
   swagger-ui:
