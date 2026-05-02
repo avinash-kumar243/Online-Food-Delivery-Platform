@@ -13,6 +13,7 @@ import com.quickbite.payment.client.OrderServiceClient;
 import com.quickbite.payment.dto.CodPaymentRequest;
 import com.quickbite.payment.dto.CreatePaymentOrderRequest;
 import com.quickbite.payment.dto.CreatePaymentOrderResponse;
+import com.quickbite.payment.dto.OrderSnapshotDto;
 import com.quickbite.payment.dto.OrderPaymentStatusRequest;
 import com.quickbite.payment.dto.PaymentResponse;
 import com.quickbite.payment.dto.RefundRequest;
@@ -277,8 +278,12 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private void publishPaymentSuccess(Payment payment) {
+        OrderSnapshotDto order = orderServiceClient.getOrderById(payment.getOrderId());
         eventPublisher.send("payment.success", new PaymentEventDTO(
             payment.getOrderId(),
+            order.customerId(),
+            order.restaurantId(),
+            order.deliveryAgentId(),
             payment.getTransactionId(),
             payment.getStatus().name(),
             payment.getAmount()
@@ -301,7 +306,7 @@ public class PaymentServiceImpl implements PaymentService {
             .customerId(request.customerId())
             .amount(request.amount())
             .status(PaymentStatus.PENDING)
-            .mode(PaymentMode.CARD)
+            .mode(parseOnlinePaymentMode(request.paymentMode()))
             .currency(request.currency())
             .build();
     }
@@ -313,7 +318,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setCustomerId(request.customerId());
         payment.setAmount(request.amount());
         payment.setStatus(PaymentStatus.PENDING);
-        payment.setMode(PaymentMode.CARD);
+        payment.setMode(parseOnlinePaymentMode(request.paymentMode()));
         payment.setCurrency(request.currency());
         payment.setRazorpayPaymentId(null);
         payment.setRazorpaySignature(null);
@@ -353,7 +358,23 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private PaymentMode resolveOnlinePaymentMode(Payment payment) {
-        return payment.getMode() == PaymentMode.UPI ? PaymentMode.UPI : PaymentMode.CARD;
+        return switch (payment.getMode()) {
+            case UPI -> PaymentMode.UPI;
+            case WALLET -> PaymentMode.WALLET;
+            default -> PaymentMode.CARD;
+        };
+    }
+
+    private PaymentMode parseOnlinePaymentMode(String paymentMode) {
+        try {
+            PaymentMode mode = PaymentMode.valueOf(paymentMode.trim().toUpperCase());
+            if (mode == PaymentMode.COD) {
+                throw new PaymentException("COD cannot be used for Razorpay checkout");
+            }
+            return mode;
+        } catch (IllegalArgumentException exception) {
+            throw new PaymentException("Unsupported online payment mode: " + paymentMode);
+        }
     }
 
     private PaymentResponse mapToPaymentResponse(Payment payment) {
