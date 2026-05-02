@@ -44,6 +44,13 @@ public class CartResource {
         return ResponseEntity.ok(cartService.updateItemQuantity(request));
     }
 
+    @PutMapping("/customer/{customerId}/items/menu/{menuItemId}/quantity")
+    public ResponseEntity<CartResponse> updateQuantityByMenuItem(@PathVariable Long customerId,
+                                                                 @PathVariable Long menuItemId,
+                                                                 @Valid @RequestBody UpdateCartItemQuantityRequest request) {
+        return ResponseEntity.ok(cartService.updateItemQuantity(customerId, menuItemId, request.quantity()));
+    }
+
     @PutMapping("/items/{itemId}/quantity")
     public ResponseEntity<CartResponse> updateQuantityByPath(@PathVariable Long itemId,
                                                              @Valid @RequestBody UpdateCartItemQuantityRequest request) {
@@ -55,6 +62,12 @@ public class CartResource {
     @DeleteMapping({"/remove-item/{itemId}", "/items/{itemId}"})
     public ResponseEntity<CartResponse> removeItem(@PathVariable Long itemId) {
         return ResponseEntity.ok(cartService.removeItem(itemId));
+    }
+
+    @DeleteMapping("/customer/{customerId}/items/menu/{menuItemId}")
+    public ResponseEntity<CartResponse> removeItemByMenuItem(@PathVariable Long customerId,
+                                                             @PathVariable Long menuItemId) {
+        return ResponseEntity.ok(cartService.removeItem(customerId, menuItemId));
     }
 
     @PostMapping("/apply-promo")
