@@ -1,4 +1,4 @@
-package com.quickbite.delivery.resource;
+package com.quickbite.delivery.controller;
 
 import java.net.URI;
 import java.util.List;
@@ -41,7 +41,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @RequestMapping({"/agents", "/api/v1/agents"})
 @Tag(name = "Delivery Agents", description = "Delivery agent registration, tracking, and assignment APIs")
-public class DeliveryResource {
+public class DeliveryController {
 
 	private final DeliveryService deliveryService;
 
