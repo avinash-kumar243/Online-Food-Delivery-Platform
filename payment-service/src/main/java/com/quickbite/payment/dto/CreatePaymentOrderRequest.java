@@ -17,6 +17,9 @@ public record CreatePaymentOrderRequest(
     @Positive(message = "Amount must be greater than zero")
     BigDecimal amount,
 
+    @NotBlank(message = "Payment mode is required")
+    String paymentMode,
+
     @NotBlank(message = "Currency is required")
     String currency
 ) {
