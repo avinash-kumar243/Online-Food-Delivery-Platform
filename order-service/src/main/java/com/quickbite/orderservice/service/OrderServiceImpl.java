@@ -21,6 +21,7 @@ import com.quickbite.orderservice.entity.Order;
 import com.quickbite.orderservice.entity.OrderItem;
 import com.quickbite.orderservice.entity.OrderStatus;
 import com.quickbite.orderservice.exception.BadRequestException;
+import com.quickbite.orderservice.exception.ConflictException;
 import com.quickbite.orderservice.exception.OrderNotFoundException;
 import com.quickbite.orderservice.messaging.GenericEventPublisher;
 import com.quickbite.orderservice.messaging.dto.OrderEventDTO;
@@ -166,7 +167,13 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setOrderStatus(status);
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+
+        if (status == OrderStatus.DELIVERED) {
+            eventPublisher.send("order.delivered", toOrderEvent(savedOrder));
+        }
+
+        return toResponse(savedOrder);
     }
 
     @Override
@@ -180,13 +187,20 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse assignDeliveryAgent(Long orderId, Long deliveryAgentId) {
-        Order order = fetchOrder(orderId);
+        Order order = orderRepository.findByIdForUpdate(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         if (EnumSet.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED).contains(order.getOrderStatus())) {
             throw new BadRequestException("Cannot assign a delivery agent to a completed or cancelled order");
         }
         if (order.getOrderStatus() != OrderStatus.READY_FOR_PICKUP) {
             throw new BadRequestException("Delivery partners can only accept READY_FOR_PICKUP orders");
+        }
+        if (order.getDeliveryAgentId() != null && !order.getDeliveryAgentId().equals(deliveryAgentId)) {
+            throw new ConflictException("Order has already been accepted by another delivery partner");
+        }
+        if (order.getDeliveryAgentId() != null) {
+            return toResponse(order);
         }
 
         order.setDeliveryAgentId(deliveryAgentId);
