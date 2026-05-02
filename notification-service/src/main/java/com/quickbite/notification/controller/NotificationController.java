@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.quickbite.notification.dto.BulkNotificationRequest;
+import com.quickbite.notification.dto.EmailNotificationRequest;
+import com.quickbite.notification.dto.PasswordResetOtpEmailRequest;
 import com.quickbite.notification.entity.Notification;
 import com.quickbite.notification.service.NotificationService;
 
@@ -51,6 +53,18 @@ public class NotificationController {
     @ResponseStatus(HttpStatus.CREATED)
     public List<Notification> sendBulk(@Valid @RequestBody BulkNotificationRequest request) {
         return notificationService.sendBulk(request);
+    }
+
+    @PostMapping("/email")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void sendEmail(@Valid @RequestBody EmailNotificationRequest request) {
+        notificationService.sendEmail(request);
+    }
+
+    @PostMapping("/email/password-reset-otp")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void sendPasswordResetOtpEmail(@Valid @RequestBody PasswordResetOtpEmailRequest request) {
+        notificationService.sendPasswordResetOtpEmail(request);
     }
 
     @DeleteMapping("/{notificationId}")
