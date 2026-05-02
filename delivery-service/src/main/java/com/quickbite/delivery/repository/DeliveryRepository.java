@@ -19,6 +19,9 @@ public interface DeliveryRepository extends JpaRepository<DeliveryAgent, Long> {
 	@Query("select agent from DeliveryAgent agent where agent.userId = :userId")
 	Optional<DeliveryAgent> findByUserId(@Param("userId") Long userId);
 
+	@Query("select agent from DeliveryAgent agent where agent.activeOrderId = :orderId")
+	Optional<DeliveryAgent> findByActiveOrderId(@Param("orderId") Long orderId);
+
 	@Query("select agent from DeliveryAgent agent where agent.available = true")
 	List<DeliveryAgent> findByIsAvailableTrue();
 
