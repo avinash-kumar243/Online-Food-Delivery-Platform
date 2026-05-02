@@ -14,9 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.quickbite.notification.dto.BulkNotificationRequest;
+import com.quickbite.notification.dto.EmailNotificationRequest;
 import com.quickbite.notification.dto.NotificationEvent;
 import com.quickbite.notification.dto.NotificationRequest;
+import com.quickbite.notification.dto.PasswordResetOtpEmailRequest;
 import com.quickbite.notification.entity.Notification;
+import com.quickbite.notification.exception.NotificationDispatchException;
 import com.quickbite.notification.exception.ResourceNotFoundException;
 import com.quickbite.notification.repository.NotificationRepository;
 import com.quickbite.notification.service.NotificationService;
@@ -65,6 +68,24 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (MailException ex) {
             log.warn("Email placeholder dispatch failed for notificationId={}: {}", notification.getNotificationId(), ex.getMessage());
         }
+    }
+
+    @Override
+    public void sendEmail(EmailNotificationRequest request) {
+        try {
+            SimpleMailMessage mailMessage = new SimpleMailMessage();
+            mailMessage.setTo(request.getTo());
+            mailMessage.setSubject(request.getSubject());
+            mailMessage.setText(request.getMessage());
+            javaMailSender.send(mailMessage);
+        } catch (MailException ex) {
+            throw new NotificationDispatchException("Failed to send email via notification-service", ex);
+        }
+    }
+
+    @Override
+    public void sendPasswordResetOtpEmail(PasswordResetOtpEmailRequest request) {
+        sendEmail(buildPasswordResetOtpEmail(request));
     }
 
     @Override
@@ -152,6 +173,15 @@ public class NotificationServiceImpl implements NotificationService {
                 .isRead(request.isRead())
                 .sentAt(LocalDateTime.now())
                 .build();
+    }
+
+    private EmailNotificationRequest buildPasswordResetOtpEmail(PasswordResetOtpEmailRequest request) {
+        EmailNotificationRequest email = new EmailNotificationRequest();
+        email.setTo(request.getTo());
+        email.setSubject("Password Reset OTP");
+        email.setMessage("Your OTP for password reset is: " + request.getOtp()
+            + ". It is valid for " + request.getValidityInMinutes() + " minute.");
+        return email;
     }
 
     private void dispatchByChannel(Notification notification) {
