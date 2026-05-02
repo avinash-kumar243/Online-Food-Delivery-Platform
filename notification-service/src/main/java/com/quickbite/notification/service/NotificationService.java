@@ -3,8 +3,10 @@ package com.quickbite.notification.service;
 import java.util.List;
 
 import com.quickbite.notification.dto.BulkNotificationRequest;
+import com.quickbite.notification.dto.EmailNotificationRequest;
 import com.quickbite.notification.dto.NotificationEvent;
 import com.quickbite.notification.dto.NotificationRequest;
+import com.quickbite.notification.dto.PasswordResetOtpEmailRequest;
 import com.quickbite.notification.entity.Notification;
 
 public interface NotificationService {
@@ -30,4 +32,8 @@ public interface NotificationService {
     void deleteNotification(int notificationId);
 
     Notification processEvent(NotificationEvent event);
+
+    void sendEmail(EmailNotificationRequest request);
+
+    void sendPasswordResetOtpEmail(PasswordResetOtpEmailRequest request);
 }
