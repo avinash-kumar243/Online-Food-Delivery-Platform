@@ -1,4 +1,4 @@
-package com.quickbite.menu.util;
+package com.quickbite.menu.config;
 
 import java.util.List;
 
