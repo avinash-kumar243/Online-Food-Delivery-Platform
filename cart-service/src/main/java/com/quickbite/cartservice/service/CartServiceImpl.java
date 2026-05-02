@@ -32,10 +32,10 @@ public class CartServiceImpl implements CartService {
     private final MenuServiceClient menuServiceClient;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CartResponse getCartByCustomerId(Long customerId) {
         return cartRepository.findByCustomerId(customerId)
-            .map(this::toResponse)
+            .map(this::refreshCartSnapshot)
             .orElseGet(() -> new CartResponse(null, customerId, null, 0.0, List.of()));
     }
 
@@ -65,13 +65,13 @@ public class CartServiceImpl implements CartService {
 
         if (existingItem != null) {
             existingItem.setQuantity(existingItem.getQuantity() + request.quantity());
-            existingItem.setPrice(resolvePrice(menuItem));
-            existingItem.setName(menuItem.name());
+            existingItem.setPrice(resolvePrice(request, menuItem));
+            existingItem.setName(resolveName(request, menuItem));
         } else {
             cart.getItems().add(CartItem.builder()
                 .menuItemId(request.menuItemId())
-                .name(menuItem.name())
-                .price(resolvePrice(menuItem))
+                .name(resolveName(request, menuItem))
+                .price(resolvePrice(request, menuItem))
                 .quantity(request.quantity())
                 .customization(request.customization())
                 .cart(cart)
@@ -100,11 +100,45 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
+    public CartResponse updateItemQuantity(Long customerId, Long menuItemId, Integer quantity) {
+        Cart cart = cartRepository.findByCustomerId(customerId)
+            .orElseThrow(() -> new CartItemNotFoundException(menuItemId));
+
+        CartItem item = cart.getItems().stream()
+            .filter(cartItem -> Objects.equals(cartItem.getMenuItemId(), menuItemId)
+                || Objects.equals(cartItem.getItemId(), menuItemId))
+            .findFirst()
+            .orElseThrow(() -> new CartItemNotFoundException(menuItemId));
+
+        item.setQuantity(quantity);
+        recalculateTotal(cart);
+        return toResponse(cartRepository.save(cart));
+    }
+
+    @Override
+    @Transactional
     public CartResponse removeItem(Long itemId) {
         CartItem item = cartItemRepository.findById(itemId)
             .orElseThrow(() -> new CartItemNotFoundException(itemId));
 
         Cart cart = item.getCart();
+        cart.getItems().remove(item);
+        resetRestaurantIfEmpty(cart);
+        recalculateTotal(cart);
+        return toResponse(cartRepository.save(cart));
+    }
+
+    @Override
+    @Transactional
+    public CartResponse removeItem(Long customerId, Long menuItemId) {
+        Cart cart = cartRepository.findByCustomerId(customerId)
+            .orElseThrow(() -> new CartItemNotFoundException(menuItemId));
+
+        CartItem item = cart.getItems().stream()
+            .filter(cartItem -> Objects.equals(cartItem.getMenuItemId(), menuItemId))
+            .findFirst()
+            .orElseThrow(() -> new CartItemNotFoundException(menuItemId));
+
         cart.getItems().remove(item);
         resetRestaurantIfEmpty(cart);
         recalculateTotal(cart);
@@ -174,11 +208,58 @@ public class CartServiceImpl implements CartService {
         );
     }
 
+    private CartResponse refreshCartSnapshot(Cart cart) {
+        boolean changed = false;
+
+        for (CartItem item : cart.getItems()) {
+            try {
+                MenuItemSnapshotDto menuItem = menuServiceClient.getMenuItem(item.getMenuItemId().intValue());
+                double resolvedPrice = resolveSnapshotPrice(menuItem);
+                String resolvedName = menuItem.name();
+
+                if (!Objects.equals(item.getName(), resolvedName)) {
+                    item.setName(resolvedName);
+                    changed = true;
+                }
+
+                if (Double.compare(item.getPrice(), resolvedPrice) != 0) {
+                    item.setPrice(resolvedPrice);
+                    changed = true;
+                }
+            } catch (Exception ignored) {
+                // Keep the persisted snapshot if the live menu item is temporarily unavailable.
+            }
+        }
+
+        if (changed) {
+            recalculateTotal(cart);
+            cart = cartRepository.save(cart);
+        }
+
+        return toResponse(cart);
+    }
+
     private String normalize(String value) {
         return value == null ? "" : value.trim();
     }
 
-    private double resolvePrice(MenuItemSnapshotDto menuItem) {
-        return menuItem.discountedPrice() != null ? menuItem.discountedPrice() : menuItem.price();
+    private double resolvePrice(AddCartItemRequest request, MenuItemSnapshotDto menuItem) {
+        if (request.price() != null && request.price() > 0) {
+            return request.price();
+        }
+
+        return menuItem.price();
+    }
+
+    private double resolveSnapshotPrice(MenuItemSnapshotDto menuItem) {
+        return menuItem.price();
+    }
+
+    private String resolveName(AddCartItemRequest request, MenuItemSnapshotDto menuItem) {
+        if (StringUtils.hasText(request.name())) {
+            return request.name().trim();
+        }
+
+        return menuItem.name();
     }
 }
