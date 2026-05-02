@@ -17,12 +17,14 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import com.quickbite.cartservice.dto.AddCartItemRequest;
+import com.quickbite.cartservice.dto.MenuItemSnapshotDto;
 import com.quickbite.cartservice.dto.UpdateCartItemQuantityRequest;
 import com.quickbite.cartservice.entity.Cart;
 import com.quickbite.cartservice.entity.CartItem;
 import com.quickbite.cartservice.exception.BadRequestException;
 import com.quickbite.cartservice.repository.CartItemRepository;
 import com.quickbite.cartservice.repository.CartRepository;
+import com.quickbite.cartservice.client.MenuServiceClient;
 
 class CartServiceImplTest {
 
@@ -32,12 +34,15 @@ class CartServiceImplTest {
     @Mock
     private CartItemRepository cartItemRepository;
 
+    @Mock
+    private MenuServiceClient menuServiceClient;
+
     private CartServiceImpl cartService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        cartService = new CartServiceImpl(cartRepository, cartItemRepository);
+        cartService = new CartServiceImpl(cartRepository, cartItemRepository, menuServiceClient);
     }
 
     @Test
@@ -45,6 +50,9 @@ class CartServiceImplTest {
         AddCartItemRequest request = new AddCartItemRequest(1L, 10L, 100L, "Burger", 120.0, 2, "Extra cheese");
 
         when(cartRepository.findByCustomerId(1L)).thenReturn(Optional.empty());
+        when(menuServiceClient.getMenuItem(100)).thenReturn(
+            new MenuItemSnapshotDto(100, 10, 1, "Burger", "Loaded burger", 120.0, null, null, false, true, null, null, null, null)
+        );
         when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> {
             Cart cart = invocation.getArgument(0);
             cart.setCartId(1L);
@@ -63,7 +71,7 @@ class CartServiceImplTest {
     }
 
     @Test
-    void addItemToCartShouldChangeRestaurantAndClearExistingItems() {
+    void addItemToCartShouldRejectDifferentRestaurantItems() {
         CartItem oldItem = CartItem.builder()
             .itemId(1L)
             .menuItemId(20L)
@@ -85,22 +93,13 @@ class CartServiceImplTest {
         AddCartItemRequest request = new AddCartItemRequest(2L, 50L, 101L, "Pasta", 180.0, 1, null);
 
         when(cartRepository.findByCustomerId(2L)).thenReturn(Optional.of(existingCart));
-        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> {
-            Cart cart = invocation.getArgument(0);
-            cart.getItems().forEach(item -> {
-                if (item.getItemId() == null) {
-                    item.setItemId(22L);
-                }
-            });
-            return cart;
-        });
+        when(menuServiceClient.getMenuItem(101)).thenReturn(
+            new MenuItemSnapshotDto(101, 50, 2, "Pasta", "Fresh pasta", 180.0, null, null, false, true, null, null, null, null)
+        );
 
-        var response = cartService.addItemToCart(request);
-
-        assertThat(response.restaurantId()).isEqualTo(50L);
-        assertThat(response.items()).hasSize(1);
-        assertThat(response.items().get(0).name()).isEqualTo("Pasta");
-        assertThat(response.totalPrice()).isEqualTo(180.0);
+        assertThatThrownBy(() -> cartService.addItemToCart(request))
+            .isInstanceOf(BadRequestException.class)
+            .hasMessageContaining("another restaurant");
     }
 
     @Test
@@ -129,6 +128,34 @@ class CartServiceImplTest {
 
         assertThat(response.totalPrice()).isEqualTo(270.0);
         assertThat(response.items().get(0).quantity()).isEqualTo(3);
+    }
+
+    @Test
+    void updateItemQuantityByMenuItemShouldFallbackToCartItemId() {
+        CartItem item = CartItem.builder()
+            .itemId(2L)
+            .menuItemId(100L)
+            .name("Biryani")
+            .price(180.0)
+            .quantity(3)
+            .build();
+
+        Cart cart = Cart.builder()
+            .cartId(6L)
+            .customerId(1L)
+            .restaurantId(10L)
+            .totalPrice(540.0)
+            .items(new ArrayList<>(List.of(item)))
+            .build();
+        item.setCart(cart);
+
+        when(cartRepository.findByCustomerId(1L)).thenReturn(Optional.of(cart));
+        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = cartService.updateItemQuantity(1L, 2L, 2);
+
+        assertThat(response.totalPrice()).isEqualTo(360.0);
+        assertThat(response.items().get(0).quantity()).isEqualTo(2);
     }
 
     @Test
