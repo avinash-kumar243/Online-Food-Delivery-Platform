@@ -201,6 +201,8 @@ public class DeliveryServiceImpl implements DeliveryService {
 		DeliveryAgent savedAgent = deliveryRepository.save(agent);
 		eventPublisher.send("delivery.assigned", new DeliveryEventDTO(
 			request.orderId(),
+			null,
+			null,
 			savedAgent.getAgentId(),
 			"ASSIGNED",
 			savedAgent.getCurrentLatitude() + "," + savedAgent.getCurrentLongitude()
@@ -215,17 +217,27 @@ public class DeliveryServiceImpl implements DeliveryService {
 		if (agent.getVerificationStatus() != VerificationStatus.VERIFIED) {
 			throw new ConflictException("Only verified delivery partners can accept orders");
 		}
-		if (agent.getActiveOrderId() == null || !agent.getActiveOrderId().equals(orderId)) {
-			throw new ConflictException("Delivery partner is not assigned to this order");
+		if (!agent.isAvailable()) {
+			throw new ConflictException("Delivery partner is currently unavailable");
+		}
+		if (agent.getActiveOrderId() != null) {
+			throw new ConflictException("Delivery partner already has an active delivery");
 		}
 
-		eventPublisher.send("order.pickedup", new DeliveryEventDTO(
+		var assignedOrder = orderServiceClient.assignAgent(orderId, new AssignOrderRequestDto(agentId));
+		agent.setAvailable(false);
+		agent.setActiveOrderId(orderId);
+		DeliveryAgent savedAgent = deliveryRepository.save(agent);
+
+		eventPublisher.send("delivery.assigned", new DeliveryEventDTO(
 			orderId,
+			assignedOrder.customerId(),
+			assignedOrder.restaurantId(),
 			agentId,
-			"PICKED_UP",
-			agent.getCurrentLatitude() + "," + agent.getCurrentLongitude()
+			"ACCEPTED",
+			savedAgent.getCurrentLatitude() + "," + savedAgent.getCurrentLongitude()
 		));
-		return toResponse(agent);
+		return toResponse(savedAgent);
 	}
 
 	@Override
