@@ -21,6 +21,10 @@ public class RabbitMqConfig {
     public static final String ORDER_EXCHANGE = "quickbite.order.exchange";
     public static final String ORDER_DLX = "quickbite.order.dlx.exchange";
     public static final String NOTIFICATION_QUEUE = "quickbite.notification-service.all-events";
+    public static final String NOTIFICATION_EXCHANGE = "quickbite.notification.exchange";
+    public static final String NOTIFICATION_DLX = "quickbite.notification.dlx.exchange";
+    public static final String PASSWORD_RESET_OTP_QUEUE = "quickbite.notification-service.password-reset-otp";
+    public static final String PASSWORD_RESET_OTP_ROUTING_KEY = "auth.password-reset-otp";
 
     @Bean
     public MessageConverter messageConverter() {
@@ -38,6 +42,16 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    public TopicExchange quickbiteNotificationExchange() {
+        return new TopicExchange(NOTIFICATION_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public TopicExchange quickbiteNotificationDeadLetterExchange() {
+        return new TopicExchange(NOTIFICATION_DLX, true, false);
+    }
+
+    @Bean
     public Declarables notificationDeclarables(TopicExchange quickbiteOrderExchange, TopicExchange quickbiteOrderDeadLetterExchange) {
         var notificationQueue = QueueBuilder.durable(NOTIFICATION_QUEUE)
             .withArguments(deadLetterArguments(NOTIFICATION_QUEUE + ".dlq"))
@@ -48,6 +62,23 @@ public class RabbitMqConfig {
             notificationDlq,
             BindingBuilder.bind(notificationQueue).to(quickbiteOrderExchange).with("#"),
             BindingBuilder.bind(notificationDlq).to(quickbiteOrderDeadLetterExchange).with(notificationDlq.getName())
+        );
+    }
+
+    @Bean
+    public Declarables passwordResetOtpDeclarables(
+        TopicExchange quickbiteNotificationExchange,
+        TopicExchange quickbiteNotificationDeadLetterExchange
+    ) {
+        var passwordResetOtpQueue = QueueBuilder.durable(PASSWORD_RESET_OTP_QUEUE)
+            .withArguments(notificationDeadLetterArguments(PASSWORD_RESET_OTP_QUEUE + ".dlq"))
+            .build();
+        var passwordResetOtpDlq = QueueBuilder.durable(PASSWORD_RESET_OTP_QUEUE + ".dlq").build();
+        return new Declarables(
+            passwordResetOtpQueue,
+            passwordResetOtpDlq,
+            BindingBuilder.bind(passwordResetOtpQueue).to(quickbiteNotificationExchange).with(PASSWORD_RESET_OTP_ROUTING_KEY),
+            BindingBuilder.bind(passwordResetOtpDlq).to(quickbiteNotificationDeadLetterExchange).with(passwordResetOtpDlq.getName())
         );
     }
 
@@ -66,6 +97,13 @@ public class RabbitMqConfig {
     private Map<String, Object> deadLetterArguments(String deadLetterQueueName) {
         Map<String, Object> arguments = new LinkedHashMap<>();
         arguments.put("x-dead-letter-exchange", ORDER_DLX);
+        arguments.put("x-dead-letter-routing-key", deadLetterQueueName);
+        return arguments;
+    }
+
+    private Map<String, Object> notificationDeadLetterArguments(String deadLetterQueueName) {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("x-dead-letter-exchange", NOTIFICATION_DLX);
         arguments.put("x-dead-letter-routing-key", deadLetterQueueName);
         return arguments;
     }
