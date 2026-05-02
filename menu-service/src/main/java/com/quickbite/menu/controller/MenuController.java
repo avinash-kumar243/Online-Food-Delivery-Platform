@@ -31,14 +31,14 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping({"/menu", "/api/v1/menu"})
+@RequestMapping("/api/v1/menu")
 @RequiredArgsConstructor
 public class MenuController {
 
     private final MenuService menuService;
 
-    @PostMapping
-    @PreAuthorize("hasAnyRole('RESTAURANT_OWNER', 'ADMIN')")
+    @PostMapping("/create")
+//    @PreAuthorize("hasAnyRole('RESTAURANT_OWNER', 'ADMIN')")
     public ResponseEntity<?> create(@Valid @RequestBody MenuMutationRequest request) {
         return request.type() == MenuEntityType.CATEGORY
             ? ResponseEntity.status(HttpStatus.CREATED).body(menuService.addCategory(requiredCategory(request)))
@@ -74,7 +74,7 @@ public class MenuController {
         return ResponseEntity.ok(menuService.toggleAvailability(request.itemId(), request.available()));
     }
 
-    @DeleteMapping
+    @DeleteMapping("/delete")
     @PreAuthorize("hasAnyRole('RESTAURANT_OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse> delete(@Valid @RequestBody MenuDeleteRequest request) {
         if (request.type() == MenuEntityType.CATEGORY) {
