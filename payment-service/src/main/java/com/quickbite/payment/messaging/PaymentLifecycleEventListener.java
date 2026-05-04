@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,8 +15,14 @@ import com.quickbite.payment.messaging.dto.OrderEventDTO;
 import com.quickbite.payment.repository.PaymentRepository;
 import com.rabbitmq.client.Channel;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 @Component
 public class PaymentLifecycleEventListener {
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final PaymentRepository paymentRepository;
 
@@ -30,15 +37,7 @@ public class PaymentLifecycleEventListener {
     )
     public void handleOrderCreated(OrderEventDTO event, Message message, Channel channel) throws IOException {
         try {
-            paymentRepository.findByOrderId(event.orderId()).orElseGet(() -> paymentRepository.save(
-                Payment.builder()
-                    .orderId(event.orderId())
-                    .customerId(event.customerId())
-                    .amount(event.totalAmount())
-                    .status(PaymentStatus.PENDING)
-                    .currency("INR")
-                    .build()
-            ));
+            paymentRepository.findByOrderId(event.orderId()).orElseGet(() -> createPendingPayment(event));
             ack(channel, message);
         } catch (Exception exception) {
             reject(channel, message);
@@ -69,6 +68,23 @@ public class PaymentLifecycleEventListener {
 
     private void ack(Channel channel, Message message) throws IOException {
         channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
+    }
+
+    private Payment createPendingPayment(OrderEventDTO event) {
+        try {
+            return paymentRepository.saveAndFlush(
+                Payment.builder()
+                    .orderId(event.orderId())
+                    .customerId(event.customerId())
+                    .amount(event.totalAmount())
+                    .status(PaymentStatus.PENDING)
+                    .currency("INR")
+                    .build()
+            );
+        } catch (DataIntegrityViolationException exception) {
+            entityManager.clear();
+            return paymentRepository.findByOrderId(event.orderId()).orElseThrow(() -> exception);
+        }
     }
 
     private void reject(Channel channel, Message message) throws IOException {
