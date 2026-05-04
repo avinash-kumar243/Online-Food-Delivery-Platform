@@ -12,6 +12,7 @@ import com.quickbite.orderservice.entity.OrderStatus;
 import com.quickbite.orderservice.messaging.dto.DeliveryEventDTO;
 import com.quickbite.orderservice.messaging.dto.OrderEventDTO;
 import com.quickbite.orderservice.messaging.dto.PaymentEventDTO;
+import com.quickbite.orderservice.realtime.RealtimeNotifier;
 import com.quickbite.orderservice.repository.OrderRepository;
 import com.rabbitmq.client.Channel;
 
@@ -19,9 +20,11 @@ import com.rabbitmq.client.Channel;
 public class OrderLifecycleEventListener {
 
     private final OrderRepository orderRepository;
+    private final RealtimeNotifier realtimeNotifier;
 
-    public OrderLifecycleEventListener(OrderRepository orderRepository) {
+    public OrderLifecycleEventListener(OrderRepository orderRepository, RealtimeNotifier realtimeNotifier) {
         this.orderRepository = orderRepository;
+        this.realtimeNotifier = realtimeNotifier;
     }
 
     @Transactional
@@ -36,7 +39,8 @@ public class OrderLifecycleEventListener {
                 if (order.getOrderStatus() == OrderStatus.PLACED) {
                     order.setOrderStatus(OrderStatus.CONFIRMED);
                 }
-                orderRepository.save(order);
+                Order savedOrder = orderRepository.save(order);
+                realtimeNotifier.publishPaymentUpdated(savedOrder, event);
             });
             ack(channel, message);
         } catch (Exception exception) {
@@ -55,7 +59,7 @@ public class OrderLifecycleEventListener {
             orderRepository.findById(event.orderId()).ifPresent(order -> {
                 if (order.getOrderStatus().ordinal() < OrderStatus.PREPARING.ordinal()) {
                     order.setOrderStatus(OrderStatus.PREPARING);
-                    orderRepository.save(order);
+                    realtimeNotifier.publishOrderUpdated(orderRepository.save(order));
                 }
             });
             ack(channel, message);
@@ -77,7 +81,7 @@ public class OrderLifecycleEventListener {
                 if (order.getOrderStatus() != OrderStatus.DELIVERED && order.getOrderStatus() != OrderStatus.CANCELLED) {
                     order.setOrderStatus(OrderStatus.READY_FOR_PICKUP);
                 }
-                orderRepository.save(order);
+                realtimeNotifier.publishOrderUpdated(orderRepository.save(order));
             });
             ack(channel, message);
         } catch (Exception exception) {
@@ -98,7 +102,7 @@ public class OrderLifecycleEventListener {
                 if (event.agentId() != null) {
                     order.setDeliveryAgentId(event.agentId());
                 }
-                orderRepository.save(order);
+                realtimeNotifier.publishOrderUpdated(orderRepository.save(order));
             });
             ack(channel, message);
         } catch (Exception exception) {
@@ -116,7 +120,7 @@ public class OrderLifecycleEventListener {
         try {
             orderRepository.findById(event.orderId()).ifPresent(order -> {
                 order.setOrderStatus(OrderStatus.DELIVERED);
-                orderRepository.save(order);
+                realtimeNotifier.publishOrderUpdated(orderRepository.save(order));
             });
             ack(channel, message);
         } catch (Exception exception) {
