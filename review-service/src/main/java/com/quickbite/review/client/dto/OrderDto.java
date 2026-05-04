@@ -9,6 +9,9 @@ public class OrderDto {
     private Long orderId;
     private Long customerId;
     private Long restaurantId;
+
     @JsonAlias("deliveryAgentId")
     private Long agentId;
+
+    private String orderStatus;
 }
