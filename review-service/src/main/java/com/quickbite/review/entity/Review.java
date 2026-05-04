@@ -1,9 +1,13 @@
 package com.quickbite.review.entity;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import com.quickbite.review.enums.ReviewType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -24,8 +28,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "reviews", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_reviews_order_id", columnNames = "order_id")
+@Table(name = "order_reviews", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_order_reviews_order_customer_type", columnNames = {"order_id", "customer_id", "review_type"})
 })
 public class Review {
 
@@ -34,7 +38,7 @@ public class Review {
     private Long reviewId;
 
     @NotNull(message = "orderId is required")
-    @Column(name = "order_id", nullable = false, unique = true)
+    @Column(name = "order_id", nullable = false)
     private Long orderId;
 
     @NotNull(message = "customerId is required")
@@ -49,30 +53,30 @@ public class Review {
     @Column(name = "agent_id", nullable = false)
     private Long agentId;
 
-    @Min(value = 1, message = "foodRating must be between 1 and 5")
-    @Max(value = 5, message = "foodRating must be between 1 and 5")
-    @Column(name = "food_rating", nullable = false)
-    private int foodRating;
+    @NotNull(message = "reviewType is required")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_type", nullable = false, length = 20)
+    private ReviewType reviewType;
 
-    @Min(value = 1, message = "deliveryRating must be between 1 and 5")
-    @Max(value = 5, message = "deliveryRating must be between 1 and 5")
-    @Column(name = "delivery_rating", nullable = false)
-    private int deliveryRating;
+    @Min(value = 1, message = "rating must be between 1 and 5")
+    @Max(value = 5, message = "rating must be between 1 and 5")
+    @Column(nullable = false)
+    private int rating;
 
     @Size(max = 1000, message = "comment must not exceed 1000 characters")
     @Column(length = 1000)
     private String comment;
 
     @Column(name = "review_date", nullable = false)
-    private LocalDate reviewDate;
+    private LocalDateTime reviewDate;
 
     @Column(name = "is_verified", nullable = false)
-    private boolean isVerified;
+    private boolean verified;
 
     @PrePersist
     public void prePersist() {
         if (reviewDate == null) {
-            reviewDate = LocalDate.now();
+            reviewDate = LocalDateTime.now();
         }
     }
 }
