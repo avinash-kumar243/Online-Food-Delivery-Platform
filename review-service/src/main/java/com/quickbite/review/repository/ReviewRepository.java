@@ -8,22 +8,23 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.quickbite.review.entity.Review;
+import com.quickbite.review.enums.ReviewType;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
 
-    List<Review> findByRestaurantId(Long restaurantId);
+    List<Review> findByRestaurantIdAndReviewTypeOrderByReviewDateDesc(Long restaurantId, ReviewType reviewType);
 
-    List<Review> findByCustomerId(Long customerId);
+    List<Review> findByCustomerIdOrderByReviewDateDesc(Long customerId);
 
-    Optional<Review> findByOrderId(Long orderId);
+    List<Review> findByOrderIdOrderByReviewDateAsc(Long orderId);
 
-    List<Review> findByAgentId(Long agentId);
+    List<Review> findByAgentIdAndReviewTypeOrderByReviewDateDesc(Long agentId, ReviewType reviewType);
 
-    boolean existsByOrderId(Long orderId);
+    Optional<Review> findByOrderIdAndCustomerIdAndReviewType(Long orderId, Long customerId, ReviewType reviewType);
 
-    @Query("select avg(r.foodRating) from Review r where r.restaurantId = :restaurantId")
+    @Query("select avg(r.rating) from Review r where r.restaurantId = :restaurantId and r.reviewType = com.quickbite.review.enums.ReviewType.FOOD")
     Double findAverageFoodRatingByRestaurantId(@Param("restaurantId") Long restaurantId);
 
-    @Query("select avg(r.deliveryRating) from Review r where r.agentId = :agentId")
+    @Query("select avg(r.rating) from Review r where r.agentId = :agentId and r.reviewType = com.quickbite.review.enums.ReviewType.DELIVERY")
     Double findAverageDeliveryRatingByAgentId(@Param("agentId") Long agentId);
 }
