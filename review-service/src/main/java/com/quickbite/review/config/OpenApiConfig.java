@@ -15,7 +15,7 @@ public class OpenApiConfig {
     public GroupedOpenApi reviewApiGroup() {
         return GroupedOpenApi.builder()
                 .group("review-service")
-                .packagesToScan("com.quickbite.review.resource")
+                .packagesToScan("com.quickbite.review.controller")
                 .build();
     }
 
