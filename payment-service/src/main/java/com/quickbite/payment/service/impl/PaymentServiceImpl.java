@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,8 +33,14 @@ import com.quickbite.payment.service.WalletService;
 import com.razorpay.Order;
 import com.razorpay.Refund;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 @Service
 public class PaymentServiceImpl implements PaymentService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final PaymentRepository paymentRepository;
     private final RazorpayGateway razorpayGateway;
@@ -59,9 +66,9 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public CreatePaymentOrderResponse createRazorpayOrder(CreatePaymentOrderRequest request) {
-        Payment payment = paymentRepository.findByOrderId(request.orderId())
+        Payment payment = paymentRepository.findByOrderIdForUpdate(request.orderId())
             .map(existingPayment -> preparePendingRazorpayPayment(existingPayment, request))
-            .orElseGet(() -> buildPendingRazorpayPayment(request));
+            .orElseGet(() -> getOrCreatePendingOnlinePayment(request));
 
         Order razorpayOrder = razorpayGateway.createOrder(request.amount(), request.currency(), "QB-" + request.orderId());
         payment.setRazorpayOrderId(razorpayOrder.get("id"));
@@ -119,9 +126,9 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public PaymentResponse createCodPayment(CodPaymentRequest request) {
-        Payment payment = paymentRepository.findByOrderId(request.orderId())
+        Payment payment = paymentRepository.findByOrderIdForUpdate(request.orderId())
             .map(existingPayment -> prepareCodPayment(existingPayment, request))
-            .orElseGet(() -> buildCodPayment(request));
+            .orElseGet(() -> getOrCreatePendingCodPayment(request));
 
         Payment savedPayment = paymentRepository.save(payment);
         return mapToPaymentResponse(savedPayment);
@@ -311,6 +318,17 @@ public class PaymentServiceImpl implements PaymentService {
             .build();
     }
 
+    private Payment getOrCreatePendingOnlinePayment(CreatePaymentOrderRequest request) {
+        try {
+            return paymentRepository.saveAndFlush(buildPendingRazorpayPayment(request));
+        } catch (DataIntegrityViolationException exception) {
+            entityManager.clear();
+            return paymentRepository.findByOrderIdForUpdate(request.orderId())
+                .map(existingPayment -> preparePendingRazorpayPayment(existingPayment, request))
+                .orElseThrow(() -> exception);
+        }
+    }
+
     private Payment preparePendingRazorpayPayment(Payment payment, CreatePaymentOrderRequest request) {
         if (payment.getStatus() == PaymentStatus.PAID) {
             throw new PaymentException("Payment is already completed for this order");
@@ -337,6 +355,17 @@ public class PaymentServiceImpl implements PaymentService {
             .mode(PaymentMode.COD)
             .currency("INR")
             .build();
+    }
+
+    private Payment getOrCreatePendingCodPayment(CodPaymentRequest request) {
+        try {
+            return paymentRepository.saveAndFlush(buildCodPayment(request));
+        } catch (DataIntegrityViolationException exception) {
+            entityManager.clear();
+            return paymentRepository.findByOrderIdForUpdate(request.orderId())
+                .map(existingPayment -> prepareCodPayment(existingPayment, request))
+                .orElseThrow(() -> exception);
+        }
     }
 
     private Payment prepareCodPayment(Payment payment, CodPaymentRequest request) {
