@@ -92,11 +92,35 @@ public class UserAdministrationService {
     @Transactional
     public void deleteUser(UserRole role, Long userId) {
         switch (role) {
-            case CUSTOMER -> updateCustomerStatus(userId, UserStatus.DELETED);
-            case RESTAURANT_OWNER -> updateRestaurantOwnerStatus(userId, UserStatus.DELETED);
-            case DELIVERY_PARTNER -> updateDeliveryPartnerStatus(userId, UserStatus.DELETED);
-            case ADMIN -> updateAdminStatus(userId, UserStatus.DELETED);
+            case CUSTOMER -> deleteCustomer(userId);
+            case RESTAURANT_OWNER -> deleteRestaurantOwner(userId);
+            case DELIVERY_PARTNER -> deleteDeliveryPartner(userId);
+            case ADMIN -> deleteAdmin(userId);
         }
+    }
+
+    private void deleteCustomer(Long userId) {
+        Customer customer = customerRepository.findByCustomerId(userId)
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+        customerRepository.delete(customer);
+    }
+
+    private void deleteRestaurantOwner(Long userId) {
+        RestaurantOwner owner = restaurantOwnerRepository.findByOwnerId(userId)
+                .orElseThrow(() -> new RuntimeException("Restaurant owner not found"));
+        restaurantOwnerRepository.delete(owner);
+    }
+
+    private void deleteDeliveryPartner(Long userId) {
+        DeliveryPartner partner = deliveryPartnerRepository.findByPartnerId(userId)
+                .orElseThrow(() -> new RuntimeException("Delivery partner not found"));
+        deliveryPartnerRepository.delete(partner);
+    }
+
+    private void deleteAdmin(Long userId) {
+        AdminUser admin = adminUserRepository.findByAdminId(userId)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+        adminUserRepository.delete(admin);
     }
 
     private void updateCustomerStatus(Long userId, UserStatus status) {
