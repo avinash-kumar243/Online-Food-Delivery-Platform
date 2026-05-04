@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record PlaceOrderRequest(
+    @NotBlank @Size(max = 100) String checkoutReference,
     @NotNull Long customerId,
     @NotNull Long restaurantId,
     @DecimalMin("0.0") @Digits(integer = 10, fraction = 2) BigDecimal discount,

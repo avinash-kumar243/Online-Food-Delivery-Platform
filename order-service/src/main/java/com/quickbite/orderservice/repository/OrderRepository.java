@@ -15,6 +15,10 @@ import jakarta.persistence.LockModeType;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
+    java.util.Optional<Order> findByCheckoutReference(String checkoutReference);
+
+    java.util.Optional<Order> findTopByCustomerIdOrderByOrderDateDesc(Long customerId);
+
     List<Order> findByCustomerId(Long customerId);
 
     List<Order> findByRestaurantId(Long restaurantId);

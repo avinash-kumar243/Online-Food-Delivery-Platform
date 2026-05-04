@@ -35,6 +35,9 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long orderId;
 
+    @Column(nullable = false, unique = true, length = 100)
+    private String checkoutReference;
+
     @Column(nullable = false)
     private Long customerId;
 

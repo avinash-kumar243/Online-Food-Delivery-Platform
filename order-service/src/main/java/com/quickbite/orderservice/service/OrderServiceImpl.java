@@ -3,11 +3,13 @@ package com.quickbite.orderservice.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
@@ -50,6 +52,16 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse placeOrder(PlaceOrderRequest request) {
+        var existingOrder = orderRepository.findByCheckoutReference(request.checkoutReference().trim());
+        if (existingOrder.isPresent()) {
+            return toResponse(existingOrder.get());
+        }
+
+        var latestCustomerOrder = orderRepository.findTopByCustomerIdOrderByOrderDateDesc(request.customerId());
+        if (latestCustomerOrder.isPresent() && isDuplicatePlacement(latestCustomerOrder.get(), request)) {
+            return toResponse(latestCustomerOrder.get());
+        }
+
         BigDecimal totalAmount = calculateTotal(request.items());
         BigDecimal discount = normalizeMoney(request.discount() == null ? ZERO : request.discount());
 
@@ -58,6 +70,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order order = Order.builder()
+            .checkoutReference(request.checkoutReference().trim())
             .customerId(request.customerId())
             .restaurantId(request.restaurantId())
             .deliveryAgentId(null)
@@ -224,6 +237,7 @@ public class OrderServiceImpl implements OrderService {
         Order existingOrder = fetchOrder(orderId);
 
         PlaceOrderRequest reorderRequest = new PlaceOrderRequest(
+            "reorder-" + existingOrder.getOrderId() + "-" + System.currentTimeMillis(),
             existingOrder.getCustomerId(),
             existingOrder.getRestaurantId(),
             existingOrder.getDiscount(),
@@ -324,6 +338,72 @@ public class OrderServiceImpl implements OrderService {
             order.getFinalAmount(),
             LocalDateTime.now()
         );
+    }
+
+    private boolean isDuplicatePlacement(Order existingOrder, PlaceOrderRequest request) {
+        if (!ACTIVE_STATUSES.contains(existingOrder.getOrderStatus())) {
+            return false;
+        }
+        if (!"PENDING".equalsIgnoreCase(existingOrder.getPaymentStatus())) {
+            return false;
+        }
+        if (existingOrder.getOrderDate() == null
+            || ChronoUnit.MINUTES.between(existingOrder.getOrderDate(), LocalDateTime.now()) > 10) {
+            return false;
+        }
+        if (!existingOrder.getRestaurantId().equals(request.restaurantId())) {
+            return false;
+        }
+        if (!existingOrder.getModeOfPayment().equalsIgnoreCase(request.modeOfPayment().trim())) {
+            return false;
+        }
+        if (!existingOrder.getDeliveryAddress().equals(request.deliveryAddress().trim())) {
+            return false;
+        }
+        if (!Objects.equals(normalizeText(existingOrder.getSpecialInstructions()), normalizeText(request.specialInstructions()))) {
+            return false;
+        }
+
+        BigDecimal totalAmount = calculateTotal(request.items());
+        BigDecimal discount = normalizeMoney(request.discount() == null ? ZERO : request.discount());
+        BigDecimal finalAmount = totalAmount.subtract(discount);
+
+        if (existingOrder.getTotalAmount().compareTo(totalAmount) != 0
+            || existingOrder.getDiscount().compareTo(discount) != 0
+            || existingOrder.getFinalAmount().compareTo(finalAmount) != 0) {
+            return false;
+        }
+
+        return sameItems(existingOrder.getItems(), request.items());
+    }
+
+    private boolean sameItems(List<OrderItem> existingItems, List<PlaceOrderItemRequest> requestItems) {
+        if (existingItems.size() != requestItems.size()) {
+            return false;
+        }
+
+        for (int index = 0; index < existingItems.size(); index++) {
+            OrderItem existingItem = existingItems.get(index);
+            PlaceOrderItemRequest requestItem = requestItems.get(index);
+
+            if (!existingItem.getMenuItemId().equals(requestItem.menuItemId())) {
+                return false;
+            }
+            if (!existingItem.getName().equals(requestItem.name().trim())) {
+                return false;
+            }
+            if (existingItem.getPrice().compareTo(normalizeMoney(requestItem.price())) != 0) {
+                return false;
+            }
+            if (existingItem.getQuantity() != requestItem.quantity()) {
+                return false;
+            }
+            if (!Objects.equals(normalizeText(existingItem.getCustomization()), normalizeText(requestItem.customization()))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static Map<OrderStatus, Set<OrderStatus>> buildTransitions() {
