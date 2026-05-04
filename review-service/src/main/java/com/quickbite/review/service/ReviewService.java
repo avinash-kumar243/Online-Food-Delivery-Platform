@@ -2,23 +2,24 @@ package com.quickbite.review.service;
 
 import java.util.List;
 
-import com.quickbite.review.entity.Review;
+import com.quickbite.review.dto.ReviewResponse;
+import com.quickbite.review.dto.ReviewSubmissionRequest;
 
 public interface ReviewService {
 
-    Review addReview(Review review);
+    ReviewResponse createFoodReview(ReviewSubmissionRequest request);
 
-    Review updateReview(Review review);
+    ReviewResponse createDeliveryReview(ReviewSubmissionRequest request);
 
-    void deleteReview(Long reviewId);
+    List<ReviewResponse> getReviewsByRestaurantId(Long restaurantId);
 
-    List<Review> getReviewsByRestaurantId(Long restaurantId);
+    List<ReviewResponse> getReviewsByCustomerId(Long customerId);
 
-    List<Review> getReviewsByCustomerId(Long customerId);
+    List<ReviewResponse> getReviewsByOrderId(Long orderId);
 
-    Review getReviewByOrderId(Long orderId);
+    List<ReviewResponse> getReviewsByAgentId(Long agentId);
 
-    List<Review> getReviewsByAgentId(Long agentId);
+    List<ReviewResponse> getAllReviews();
 
     double getAverageFoodRating(Long restaurantId);
 
