@@ -3,6 +3,7 @@ package com.quickbite.orderservice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,11 +42,13 @@ class OrderServiceImplTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         orderService = new OrderServiceImpl(orderRepository, eventPublisher);
+        when(orderRepository.findByCheckoutReference(anyString())).thenReturn(Optional.empty());
     }
 
     @Test
     void placeOrderShouldSnapshotItemsAndCalculateAmounts() {
         PlaceOrderRequest request = new PlaceOrderRequest(
+            "checkout-1",
             1L,
             10L,
             new BigDecimal("15.00"),
@@ -77,6 +80,94 @@ class OrderServiceImplTest {
         assertThat(response.finalAmount()).isEqualByComparingTo("285.00");
         assertThat(response.orderStatus()).isEqualTo(OrderStatus.PLACED);
         assertThat(response.items()).hasSize(2);
+    }
+
+    @Test
+    void placeOrderShouldReturnExistingOrderForSameCheckoutReference() {
+        Order existingOrder = Order.builder()
+            .orderId(64L)
+            .checkoutReference("checkout-64")
+            .customerId(3L)
+            .restaurantId(21L)
+            .totalAmount(new BigDecimal("180.00"))
+            .discount(new BigDecimal("0.00"))
+            .finalAmount(new BigDecimal("180.00"))
+            .modeOfPayment("CARD")
+            .paymentStatus("PENDING")
+            .orderStatus(OrderStatus.PLACED)
+            .orderDate(LocalDateTime.now())
+            .estimatedDelivery(LocalDateTime.now().plusMinutes(40))
+            .deliveryAddress("Brigade Road")
+            .items(new ArrayList<>())
+            .build();
+
+        when(orderRepository.findByCheckoutReference("checkout-64")).thenReturn(Optional.of(existingOrder));
+
+        PlaceOrderRequest request = new PlaceOrderRequest(
+            "checkout-64",
+            3L,
+            21L,
+            new BigDecimal("0.00"),
+            "CARD",
+            LocalDateTime.now().plusMinutes(40),
+            "Brigade Road",
+            null,
+            List.of(new PlaceOrderItemRequest(11L, "Burger", new BigDecimal("180.00"), 1, null))
+        );
+
+        var response = orderService.placeOrder(request);
+
+        assertThat(response.orderId()).isEqualTo(64L);
+    }
+
+    @Test
+    void placeOrderShouldReuseLatestPendingMatchingOrder() {
+        OrderItem existingItem = OrderItem.builder()
+            .orderItemId(401L)
+            .menuItemId(11L)
+            .name("Burger")
+            .price(new BigDecimal("180.00"))
+            .quantity(1)
+            .customization("No mayo")
+            .build();
+
+        Order existingOrder = Order.builder()
+            .orderId(66L)
+            .checkoutReference("checkout-old")
+            .customerId(3L)
+            .restaurantId(21L)
+            .totalAmount(new BigDecimal("180.00"))
+            .discount(new BigDecimal("0.00"))
+            .finalAmount(new BigDecimal("180.00"))
+            .modeOfPayment("CARD")
+            .paymentStatus("PENDING")
+            .orderStatus(OrderStatus.PLACED)
+            .orderDate(LocalDateTime.now().minusMinutes(2))
+            .estimatedDelivery(LocalDateTime.now().plusMinutes(40))
+            .deliveryAddress("Brigade Road")
+            .specialInstructions("Ring bell")
+            .items(new ArrayList<>(List.of(existingItem)))
+            .build();
+        existingItem.setOrder(existingOrder);
+
+        when(orderRepository.findByCheckoutReference("checkout-new")).thenReturn(Optional.empty());
+        when(orderRepository.findTopByCustomerIdOrderByOrderDateDesc(3L)).thenReturn(Optional.of(existingOrder));
+
+        PlaceOrderRequest request = new PlaceOrderRequest(
+            "checkout-new",
+            3L,
+            21L,
+            new BigDecimal("0.00"),
+            "CARD",
+            LocalDateTime.now().plusMinutes(40),
+            "Brigade Road",
+            "Ring bell",
+            List.of(new PlaceOrderItemRequest(11L, "Burger", new BigDecimal("180.00"), 1, "No mayo"))
+        );
+
+        var response = orderService.placeOrder(request);
+
+        assertThat(response.orderId()).isEqualTo(66L);
     }
 
     @Test
