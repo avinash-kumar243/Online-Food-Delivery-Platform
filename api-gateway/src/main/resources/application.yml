@@ -91,6 +91,11 @@ spring:
               filters:
                 - AuthenticationFilter
 
+            - id: order-service-websocket
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/ws/orders/**
+
             - id: order-service-admin
               uri: lb://ORDER-SERVICE
               predicates:
