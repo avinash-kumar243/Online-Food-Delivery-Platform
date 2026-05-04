@@ -53,6 +53,10 @@ springdoc:
 
 frontend-url: ${FRONTEND_URL:http://localhost:4200}
 
+jwt:
+  secret: ${JWT_SECRET:local-dev-secret-key-local-dev-secret-key}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
 quickbite:
   integrations:
     cart-service:
