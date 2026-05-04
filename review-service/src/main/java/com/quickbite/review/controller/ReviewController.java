@@ -1,4 +1,4 @@
-package com.quickbite.review.resource;
+package com.quickbite.review.controller;
 
 import java.util.List;
 
@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping({"/reviews", "/api/v1/reviews"})
 @RequiredArgsConstructor
-public class ReviewResource {
+public class ReviewController {
 
     private final ReviewService reviewService;
 
