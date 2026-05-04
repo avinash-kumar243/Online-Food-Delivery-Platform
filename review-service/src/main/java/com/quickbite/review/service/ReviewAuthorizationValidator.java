@@ -23,6 +23,14 @@ public class ReviewAuthorizationValidator {
 
     @Transactional
     public ReviewEligibility validateDeliveredOrder(Long orderId, Long customerId) {
+        ReviewEligibility cachedEligibility = reviewEligibilityRepository.findByOrderId(orderId).orElse(null);
+        if (cachedEligibility != null && cachedEligibility.isEligible()) {
+            if (!cachedEligibility.getCustomerId().equals(customerId)) {
+                throw new BadRequestException("This order is not associated with the provided customer");
+            }
+            return cachedEligibility;
+        }
+
         OrderDto order = orderClient.getOrderById(orderId);
         if (order == null) {
             throw new ResourceNotFoundException("Order not found for orderId " + orderId);
