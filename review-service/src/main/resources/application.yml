@@ -48,7 +48,7 @@ management:
       show-details: always
 
 springdoc:
-  packages-to-scan: com.quickbite.review.resource
+  packages-to-scan: com.quickbite.review.controller
   swagger-ui:
     path: /swagger-ui/index.html
 
@@ -57,12 +57,3 @@ quickbite:
     order-service:
       name: order-service
       path: /orders
-    customer-service:
-      name: customer-service
-      path: /customers
-    restaurant-service:
-      name: restaurant-service
-      path: /restaurants
-    agent-service:
-      name: agent-service
-      path: /agents
