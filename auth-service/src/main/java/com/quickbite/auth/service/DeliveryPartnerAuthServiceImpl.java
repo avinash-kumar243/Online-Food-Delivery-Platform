@@ -60,6 +60,12 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
         partner.setCreatedAt(LocalDateTime.now()); 
 
         deliveryPartnerRepository.save(partner); 
+        emailService.sendUserCreatedEmail(
+            partner.getPartnerId(),
+            partner.getFullName(),
+            partner.getEmail(),
+            UserRole.DELIVERY_PARTNER.name()
+        );
         
         String token = jwtService.generateToken(partner.getEmail(), UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId());
         
@@ -181,6 +187,12 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 		partner.setIsActive(false);
 		partner.setStatus(UserStatus.SUSPENDED);
 		deliveryPartnerRepository.save(partner);
+        emailService.sendUserSuspendedEmail(
+            partner.getPartnerId(),
+            partner.getFullName(),
+            partner.getEmail(),
+            UserRole.DELIVERY_PARTNER.name()
+        );
 		
 		return new ResponseDto("Account deactivated successfully", "");
 	}

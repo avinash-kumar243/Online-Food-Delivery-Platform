@@ -56,6 +56,12 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
         owner.setCreatedAt(LocalDateTime.now()); 
 
         restaurantOwnerRepository.save(owner); 
+        emailService.sendUserCreatedEmail(
+            owner.getOwnerId(),
+            owner.getFullName(),
+            owner.getEmail(),
+            UserRole.RESTAURANT_OWNER.name()
+        );
         
         String token = jwtService.generateToken(owner.getEmail(), UserRole.RESTAURANT_OWNER.name(), owner.getOwnerId());
         
@@ -176,6 +182,12 @@ public class RestaurantOwnerAuthServiceImpl implements IRestaurantOwnerAuthServi
 		owner.setIsActive(false);
 		owner.setStatus(UserStatus.SUSPENDED);
 		restaurantOwnerRepository.save(owner);
+        emailService.sendUserSuspendedEmail(
+            owner.getOwnerId(),
+            owner.getFullName(),
+            owner.getEmail(),
+            UserRole.RESTAURANT_OWNER.name()
+        );
 		
 		return new ResponseDto("Account deactivated successfully", "");
 	}

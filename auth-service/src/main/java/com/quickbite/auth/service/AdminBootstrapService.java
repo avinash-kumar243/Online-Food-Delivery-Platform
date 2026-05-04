@@ -17,6 +17,7 @@ public class AdminBootstrapService implements CommandLineRunner {
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Value("${quickbite.admin.bootstrap.enabled:true}")
     private boolean bootstrapEnabled;
@@ -43,5 +44,11 @@ public class AdminBootstrapService implements CommandLineRunner {
         admin.setStatus(UserStatus.ACTIVE);
         admin.setIsActive(Boolean.TRUE);
         adminUserRepository.save(admin);
+        emailService.sendUserCreatedEmail(
+            admin.getAdminId(),
+            admin.getFullName(),
+            admin.getEmail(),
+            "ADMIN"
+        );
     }
 }

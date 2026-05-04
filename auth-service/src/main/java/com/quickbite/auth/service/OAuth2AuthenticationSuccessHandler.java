@@ -41,6 +41,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private final DeliveryPartnerRepository deliveryPartnerRepository;
     private final RestaurantOwnerRepository restaurantOwnerRepository;
     private final JwtService jwtService;
+    private final EmailService emailService;
 
     @Override
     public void onAuthenticationSuccess(
@@ -87,6 +88,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 Optional<Customer> customerOpt = customerRepository.findByEmail(email);
 
                 Customer customer;
+                boolean isNewCustomer = customerOpt.isEmpty();
                 if (customerOpt.isPresent()) {
                     customer = customerOpt.get();
                 } else {
@@ -109,6 +111,14 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 customerRepository.save(customer);
+                if (isNewCustomer) {
+                    emailService.sendUserCreatedEmail(
+                        customer.getCustomerId(),
+                        customer.getFullName(),
+                        customer.getEmail(),
+                        "CUSTOMER"
+                    );
+                }
 
                 token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
                 userType = "CUSTOMER";
@@ -119,6 +129,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 Optional<RestaurantOwner> ownerOpt = restaurantOwnerRepository.findByEmail(email);
 
                 RestaurantOwner owner;
+                boolean isNewOwner = ownerOpt.isEmpty();
                 if (ownerOpt.isPresent()) {
                     owner = ownerOpt.get();
                 } else {
@@ -141,6 +152,14 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 restaurantOwnerRepository.save(owner);
+                if (isNewOwner) {
+                    emailService.sendUserCreatedEmail(
+                        owner.getOwnerId(),
+                        owner.getFullName(),
+                        owner.getEmail(),
+                        "RESTAURANT_OWNER"
+                    );
+                }
 
                 token = jwtService.generateToken(owner.getEmail(), "RESTAURANT_OWNER", owner.getOwnerId());
                 userType = "RESTAURANT_OWNER";
@@ -151,6 +170,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 Optional<DeliveryPartner> partnerOpt = deliveryPartnerRepository.findByEmail(email);
 
                 DeliveryPartner partner;
+                boolean isNewPartner = partnerOpt.isEmpty();
                 if (partnerOpt.isPresent()) {
                     partner = partnerOpt.get();
                 } else {
@@ -174,6 +194,14 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 deliveryPartnerRepository.save(partner);
+                if (isNewPartner) {
+                    emailService.sendUserCreatedEmail(
+                        partner.getPartnerId(),
+                        partner.getFullName(),
+                        partner.getEmail(),
+                        "DELIVERY_PARTNER"
+                    );
+                }
 
                 token = jwtService.generateToken(partner.getEmail(), "DELIVERY_PARTNER", partner.getPartnerId());
                 userType = "DELIVERY_PARTNER";
@@ -184,6 +212,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 Optional<Customer> customerOpt = customerRepository.findByEmail(email);
 
                 Customer customer;
+                boolean isNewCustomer = customerOpt.isEmpty();
                 if (customerOpt.isPresent()) {
                     customer = customerOpt.get();
                 } else {
@@ -206,6 +235,14 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
 
                 customerRepository.save(customer);
+                if (isNewCustomer) {
+                    emailService.sendUserCreatedEmail(
+                        customer.getCustomerId(),
+                        customer.getFullName(),
+                        customer.getEmail(),
+                        "CUSTOMER"
+                    );
+                }
 
                 token = jwtService.generateToken(customer.getEmail(), "CUSTOMER", customer.getCustomerId());
                 userType = "CUSTOMER";

@@ -29,6 +29,7 @@ public class UserAdministrationService {
     private final DeliveryPartnerRepository deliveryPartnerRepository;
     private final AdminUserRepository adminUserRepository;
     private final UserStatusSupport userStatusSupport;
+    private final EmailService emailService;
 
     @Transactional(readOnly = true)
     public List<PlatformUserDto> getAllUsers() {
@@ -102,24 +103,48 @@ public class UserAdministrationService {
     private void deleteCustomer(Long userId) {
         Customer customer = customerRepository.findByCustomerId(userId)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
+        emailService.sendUserDeletedEmail(
+            customer.getCustomerId(),
+            customer.getFullName(),
+            customer.getEmail(),
+            UserRole.CUSTOMER.name()
+        );
         customerRepository.delete(customer);
     }
 
     private void deleteRestaurantOwner(Long userId) {
         RestaurantOwner owner = restaurantOwnerRepository.findByOwnerId(userId)
                 .orElseThrow(() -> new RuntimeException("Restaurant owner not found"));
+        emailService.sendUserDeletedEmail(
+            owner.getOwnerId(),
+            owner.getFullName(),
+            owner.getEmail(),
+            UserRole.RESTAURANT_OWNER.name()
+        );
         restaurantOwnerRepository.delete(owner);
     }
 
     private void deleteDeliveryPartner(Long userId) {
         DeliveryPartner partner = deliveryPartnerRepository.findByPartnerId(userId)
                 .orElseThrow(() -> new RuntimeException("Delivery partner not found"));
+        emailService.sendUserDeletedEmail(
+            partner.getPartnerId(),
+            partner.getFullName(),
+            partner.getEmail(),
+            UserRole.DELIVERY_PARTNER.name()
+        );
         deliveryPartnerRepository.delete(partner);
     }
 
     private void deleteAdmin(Long userId) {
         AdminUser admin = adminUserRepository.findByAdminId(userId)
                 .orElseThrow(() -> new RuntimeException("Admin not found"));
+        emailService.sendUserDeletedEmail(
+            admin.getAdminId(),
+            admin.getFullName(),
+            admin.getEmail(),
+            UserRole.ADMIN.name()
+        );
         adminUserRepository.delete(admin);
     }
 
@@ -129,6 +154,21 @@ public class UserAdministrationService {
         customer.setStatus(status);
         customer.setIsActive(status == UserStatus.ACTIVE);
         customerRepository.save(customer);
+        if (status == UserStatus.SUSPENDED) {
+            emailService.sendUserSuspendedEmail(
+                customer.getCustomerId(),
+                customer.getFullName(),
+                customer.getEmail(),
+                UserRole.CUSTOMER.name()
+            );
+        } else if (status == UserStatus.ACTIVE) {
+            emailService.sendUserReactivatedEmail(
+                customer.getCustomerId(),
+                customer.getFullName(),
+                customer.getEmail(),
+                UserRole.CUSTOMER.name()
+            );
+        }
     }
 
     private void updateRestaurantOwnerStatus(Long userId, UserStatus status) {
@@ -137,6 +177,21 @@ public class UserAdministrationService {
         owner.setStatus(status);
         owner.setIsActive(status == UserStatus.ACTIVE);
         restaurantOwnerRepository.save(owner);
+        if (status == UserStatus.SUSPENDED) {
+            emailService.sendUserSuspendedEmail(
+                owner.getOwnerId(),
+                owner.getFullName(),
+                owner.getEmail(),
+                UserRole.RESTAURANT_OWNER.name()
+            );
+        } else if (status == UserStatus.ACTIVE) {
+            emailService.sendUserReactivatedEmail(
+                owner.getOwnerId(),
+                owner.getFullName(),
+                owner.getEmail(),
+                UserRole.RESTAURANT_OWNER.name()
+            );
+        }
     }
 
     private void updateDeliveryPartnerStatus(Long userId, UserStatus status) {
@@ -145,6 +200,21 @@ public class UserAdministrationService {
         partner.setStatus(status);
         partner.setIsActive(status == UserStatus.ACTIVE);
         deliveryPartnerRepository.save(partner);
+        if (status == UserStatus.SUSPENDED) {
+            emailService.sendUserSuspendedEmail(
+                partner.getPartnerId(),
+                partner.getFullName(),
+                partner.getEmail(),
+                UserRole.DELIVERY_PARTNER.name()
+            );
+        } else if (status == UserStatus.ACTIVE) {
+            emailService.sendUserReactivatedEmail(
+                partner.getPartnerId(),
+                partner.getFullName(),
+                partner.getEmail(),
+                UserRole.DELIVERY_PARTNER.name()
+            );
+        }
     }
 
     private void updateAdminStatus(Long userId, UserStatus status) {
@@ -153,6 +223,21 @@ public class UserAdministrationService {
         admin.setStatus(status);
         admin.setIsActive(status == UserStatus.ACTIVE);
         adminUserRepository.save(admin);
+        if (status == UserStatus.SUSPENDED) {
+            emailService.sendUserSuspendedEmail(
+                admin.getAdminId(),
+                admin.getFullName(),
+                admin.getEmail(),
+                UserRole.ADMIN.name()
+            );
+        } else if (status == UserStatus.ACTIVE) {
+            emailService.sendUserReactivatedEmail(
+                admin.getAdminId(),
+                admin.getFullName(),
+                admin.getEmail(),
+                UserRole.ADMIN.name()
+            );
+        }
     }
 
     private PlatformUserDto toCustomerDto(Customer customer) {

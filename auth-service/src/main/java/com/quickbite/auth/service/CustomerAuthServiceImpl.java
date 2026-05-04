@@ -58,6 +58,12 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
         customer.setCreatedAt(LocalDateTime.now()); 
 
         customerRepository.save(customer); 
+        emailService.sendUserCreatedEmail(
+            customer.getCustomerId(),
+            customer.getFullName(),
+            customer.getEmail(),
+            UserRole.CUSTOMER.name()
+        );
         
         String token = jwtService.generateToken(customer.getEmail(), UserRole.CUSTOMER.name(), customer.getCustomerId());
         
@@ -162,6 +168,12 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 		customer.setIsActive(false);
 		customer.setStatus(UserStatus.SUSPENDED);
 		customerRepository.save(customer);
+        emailService.sendUserSuspendedEmail(
+            customer.getCustomerId(),
+            customer.getFullName(),
+            customer.getEmail(),
+            UserRole.CUSTOMER.name()
+        );
 		
 		return new ResponseDto("Account deactivated successfully", "");
 	}
