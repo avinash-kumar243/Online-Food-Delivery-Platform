@@ -18,6 +18,7 @@ import com.quickbite.notification.dto.EmailNotificationRequest;
 import com.quickbite.notification.dto.NotificationEvent;
 import com.quickbite.notification.dto.NotificationRequest;
 import com.quickbite.notification.dto.PasswordResetOtpEmailRequest;
+import com.quickbite.notification.dto.UserLifecycleEmailRequest;
 import com.quickbite.notification.entity.Notification;
 import com.quickbite.notification.exception.NotificationDispatchException;
 import com.quickbite.notification.exception.ResourceNotFoundException;
@@ -86,6 +87,11 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void sendPasswordResetOtpEmail(PasswordResetOtpEmailRequest request) {
         sendEmail(buildPasswordResetOtpEmail(request));
+    }
+
+    @Override
+    public void sendUserLifecycleEmail(UserLifecycleEmailRequest request) {
+        sendEmail(buildUserLifecycleEmail(request));
     }
 
     @Override
@@ -182,6 +188,43 @@ public class NotificationServiceImpl implements NotificationService {
         email.setMessage("Your OTP for password reset is: " + request.getOtp()
             + ". It is valid for " + request.getValidityInMinutes() + " minute.");
         return email;
+    }
+
+    private EmailNotificationRequest buildUserLifecycleEmail(UserLifecycleEmailRequest request) {
+        EmailNotificationRequest email = new EmailNotificationRequest();
+        email.setTo(request.getTo());
+        email.setSubject(resolveUserLifecycleSubject(request.getEventType()));
+        email.setMessage(resolveUserLifecycleMessage(request));
+        return email;
+    }
+
+    private String resolveUserLifecycleSubject(String eventType) {
+        return switch (eventType) {
+            case "USER_CREATED" -> "Welcome to QuickBite";
+            case "USER_SUSPENDED" -> "QuickBite account suspension notice";
+            case "USER_REACTIVATED" -> "QuickBite account reactivated";
+            case "USER_DELETED" -> "QuickBite account deletion notice";
+            default -> "QuickBite account update";
+        };
+    }
+
+    private String resolveUserLifecycleMessage(UserLifecycleEmailRequest request) {
+        return switch (request.getEventType()) {
+            case "USER_CREATED" ->
+                "Hello " + request.getFullName() + ", your " + request.getRole()
+                    + " account has been created successfully on QuickBite.";
+            case "USER_SUSPENDED" ->
+                "Hello " + request.getFullName() + ", your " + request.getRole()
+                    + " account has been suspended. Please contact support or admin for more details.";
+            case "USER_REACTIVATED" ->
+                "Hello " + request.getFullName() + ", your " + request.getRole()
+                    + " account has been reactivated. You can use QuickBite again.";
+            case "USER_DELETED" ->
+                "Hello " + request.getFullName() + ", your " + request.getRole()
+                    + " account has been deleted or closed from QuickBite.";
+            default ->
+                "Hello " + request.getFullName() + ", there is an update for your QuickBite account.";
+        };
     }
 
     private void dispatchByChannel(Notification notification) {

@@ -7,6 +7,7 @@ import com.quickbite.notification.dto.EmailNotificationRequest;
 import com.quickbite.notification.dto.NotificationEvent;
 import com.quickbite.notification.dto.NotificationRequest;
 import com.quickbite.notification.dto.PasswordResetOtpEmailRequest;
+import com.quickbite.notification.dto.UserLifecycleEmailRequest;
 import com.quickbite.notification.entity.Notification;
 
 public interface NotificationService {
@@ -36,4 +37,6 @@ public interface NotificationService {
     void sendEmail(EmailNotificationRequest request);
 
     void sendPasswordResetOtpEmail(PasswordResetOtpEmailRequest request);
+
+    void sendUserLifecycleEmail(UserLifecycleEmailRequest request);
 }
