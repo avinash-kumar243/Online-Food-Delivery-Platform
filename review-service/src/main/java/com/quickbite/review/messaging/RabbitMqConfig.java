@@ -9,8 +9,8 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,6 +39,7 @@ public class RabbitMqConfig {
             .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq"))
             .build();
         var deliveredDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq").build();
+
         return new Declarables(
             deliveredQueue,
             deliveredDlq,
@@ -56,6 +57,8 @@ public class RabbitMqConfig {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         configurer.configure(factory, connectionFactory);
         factory.setMessageConverter(jacksonMessageConverter);
+        factory.setConcurrentConsumers(2);
+        factory.setMaxConcurrentConsumers(4);
         return factory;
     }
 

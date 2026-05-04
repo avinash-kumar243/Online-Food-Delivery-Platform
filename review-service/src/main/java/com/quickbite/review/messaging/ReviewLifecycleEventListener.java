@@ -15,16 +15,14 @@ import com.quickbite.review.messaging.dto.OrderEventDTO;
 import com.quickbite.review.repository.ReviewEligibilityRepository;
 import com.rabbitmq.client.Channel;
 
+import lombok.RequiredArgsConstructor;
+
 @Component
+@RequiredArgsConstructor
 public class ReviewLifecycleEventListener {
 
     private final OrderClient orderClient;
     private final ReviewEligibilityRepository reviewEligibilityRepository;
-
-    public ReviewLifecycleEventListener(OrderClient orderClient, ReviewEligibilityRepository reviewEligibilityRepository) {
-        this.orderClient = orderClient;
-        this.reviewEligibilityRepository = reviewEligibilityRepository;
-    }
 
     @Transactional
     @RabbitListener(
@@ -34,16 +32,18 @@ public class ReviewLifecycleEventListener {
     public void handleOrderDelivered(OrderEventDTO event, Message message, Channel channel) throws IOException {
         try {
             OrderDto order = orderClient.getOrderById(event.orderId());
-            reviewEligibilityRepository.findByOrderId(event.orderId())
-                .map(existing -> updateEligibility(existing, order))
-                .orElseGet(() -> reviewEligibilityRepository.save(ReviewEligibility.builder()
-                    .orderId(event.orderId())
-                    .customerId(order.getCustomerId())
-                    .restaurantId(order.getRestaurantId())
-                    .agentId(order.getAgentId())
-                    .eligible(true)
-                    .enabledAt(LocalDateTime.now())
-                    .build()));
+            if (order != null && order.getCustomerId() != null && order.getRestaurantId() != null && order.getAgentId() != null) {
+                reviewEligibilityRepository.findByOrderId(event.orderId())
+                    .map(existing -> updateEligibility(existing, order))
+                    .orElseGet(() -> reviewEligibilityRepository.save(ReviewEligibility.builder()
+                        .orderId(order.getOrderId())
+                        .customerId(order.getCustomerId())
+                        .restaurantId(order.getRestaurantId())
+                        .agentId(order.getAgentId())
+                        .eligible(true)
+                        .enabledAt(LocalDateTime.now())
+                        .build()));
+            }
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
         } catch (Exception exception) {
             channel.basicNack(message.getMessageProperties().getDeliveryTag(), false, false);
