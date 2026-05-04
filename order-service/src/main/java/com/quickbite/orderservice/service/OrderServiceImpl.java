@@ -27,6 +27,7 @@ import com.quickbite.orderservice.exception.ConflictException;
 import com.quickbite.orderservice.exception.OrderNotFoundException;
 import com.quickbite.orderservice.messaging.GenericEventPublisher;
 import com.quickbite.orderservice.messaging.dto.OrderEventDTO;
+import com.quickbite.orderservice.realtime.RealtimeNotifier;
 import com.quickbite.orderservice.repository.OrderRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final GenericEventPublisher eventPublisher;
+    private final RealtimeNotifier realtimeNotifier;
 
     @Override
     @Transactional
@@ -94,6 +96,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
         eventPublisher.send("order.created", toOrderEvent(savedOrder));
+        realtimeNotifier.publishOrderCreated(savedOrder);
         return toResponse(savedOrder);
     }
 
@@ -185,6 +188,7 @@ public class OrderServiceImpl implements OrderService {
         if (status == OrderStatus.DELIVERED) {
             eventPublisher.send("order.delivered", toOrderEvent(savedOrder));
         }
+        realtimeNotifier.publishOrderUpdated(savedOrder);
 
         return toResponse(savedOrder);
     }
@@ -194,7 +198,9 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updatePaymentStatus(Long orderId, String paymentStatus) {
         Order order = fetchOrder(orderId);
         order.setPaymentStatus(paymentStatus == null || paymentStatus.isBlank() ? "PENDING" : paymentStatus.trim().toUpperCase());
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        realtimeNotifier.publishOrderUpdated(savedOrder);
+        return toResponse(savedOrder);
     }
 
     @Override
@@ -217,7 +223,9 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setDeliveryAgentId(deliveryAgentId);
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        realtimeNotifier.publishOrderUpdated(savedOrder);
+        return toResponse(savedOrder);
     }
 
     @Override
@@ -228,7 +236,9 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("Delivered orders cannot be cancelled");
         }
         order.setOrderStatus(OrderStatus.CANCELLED);
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        realtimeNotifier.publishOrderUpdated(savedOrder);
+        return toResponse(savedOrder);
     }
 
     @Override
