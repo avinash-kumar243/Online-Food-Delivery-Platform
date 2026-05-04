@@ -126,6 +126,13 @@ spring:
               filters:
                 - AuthenticationFilter
 
+            - id: review-service
+              uri: lb://REVIEW-SERVICE
+              predicates:
+                - Path=/api/v1/reviews/**
+              filters:
+                - AuthenticationFilter
+
 jwt:
   secret: ${JWT_SECRET:local-dev-secret-key-local-dev-secret-key}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
