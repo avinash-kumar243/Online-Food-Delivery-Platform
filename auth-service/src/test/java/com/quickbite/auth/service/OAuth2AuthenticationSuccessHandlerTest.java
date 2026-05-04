@@ -43,6 +43,9 @@ class OAuth2AuthenticationSuccessHandlerTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private EmailService emailService;
+
     private OAuth2AuthenticationSuccessHandler handler;
 
     @BeforeEach
@@ -51,7 +54,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
             customerRepository,
             deliveryPartnerRepository,
             restaurantOwnerRepository,
-            jwtService
+            jwtService,
+            emailService
         );
         ReflectionTestUtils.setField(handler, "frontendUrl", "http://localhost:4200");
     }
@@ -88,6 +92,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         ArgumentCaptor<RestaurantOwner> ownerCaptor = ArgumentCaptor.forClass(RestaurantOwner.class);
         verify(restaurantOwnerRepository).save(ownerCaptor.capture());
+        verify(emailService).sendUserCreatedEmail(42L, "Owner Name", "owner@example.com", "RESTAURANT_OWNER");
 
         assertThat(ownerCaptor.getValue().getProvider()).isEqualTo("GOOGLE");
         assertThat(ownerCaptor.getValue().getFullName()).isEqualTo("Owner Name");
