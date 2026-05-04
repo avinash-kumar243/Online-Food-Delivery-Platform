@@ -39,7 +39,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @Validated
 @RequiredArgsConstructor
-@RequestMapping({"/agents", "/api/v1/agents"})
+@RequestMapping("/api/v1/agents")
 @Tag(name = "Delivery Agents", description = "Delivery agent registration, tracking, and assignment APIs")
 public class DeliveryController {
 
