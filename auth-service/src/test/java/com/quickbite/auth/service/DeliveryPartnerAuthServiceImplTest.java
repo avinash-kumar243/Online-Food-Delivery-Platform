@@ -69,10 +69,50 @@ class DeliveryPartnerAuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("Register - Email Already Exists")
+    void register_EmailExists() {
+        when(deliveryPartnerRepository.existsByEmail(anyString())).thenReturn(true);
+
+        assertThrows(RuntimeException.class, () -> deliveryPartnerService.register(registerDto));
+    }
+
+    @Test
+    @DisplayName("Register - Phone Already Exists")
+    void register_PhoneExists() {
+        when(deliveryPartnerRepository.existsByEmail(anyString())).thenReturn(false);
+        when(deliveryPartnerRepository.existsByPhone(anyString())).thenReturn(true);
+
+        assertThrows(RuntimeException.class, () -> deliveryPartnerService.register(registerDto));
+    }
+
+    @Test
     @DisplayName("Login - Account Not Found Exception")
     void login_NotFound() {
         when(deliveryPartnerRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         assertThrows(AccountNotFoundException.class, () -> deliveryPartnerService.login("wrong@test.com", "pass"));
+    }
+
+    @Test
+    @DisplayName("Login - Success")
+    void login_Success() {
+        when(deliveryPartnerRepository.findByEmail(anyString())).thenReturn(Optional.of(testPartner));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+        when(jwtService.generateToken(anyString(), anyString(), anyLong())).thenReturn("token");
+
+        ResponseDto response = deliveryPartnerService.login("partner@quickbite.com", "pass123");
+
+        assertEquals("Delivery partner login successful", response.getMessage());
+        verify(deliveryPartnerRepository).save(testPartner);
+    }
+
+    @Test
+    @DisplayName("Login - Wrong Password")
+    void login_WrongPassword() {
+        when(deliveryPartnerRepository.findByEmail(anyString())).thenReturn(Optional.of(testPartner));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        assertThrows(PasswordNotMatchException.class,
+                () -> deliveryPartnerService.login("partner@quickbite.com", "wrong"));
     }
 
     @Test
@@ -99,11 +139,42 @@ class DeliveryPartnerAuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("Refresh Token - Blacklisted")
+    void refreshToken_Blacklisted() {
+        when(tokenBlacklistService.isBlacklisted("blocked-token")).thenReturn(true);
+
+        assertThrows(RuntimeException.class, () -> deliveryPartnerService.refreshToken("blocked-token"));
+    }
+
+    @Test
+    @DisplayName("Refresh Token - Invalid")
+    void refreshToken_Invalid() {
+        String token = "invalid-token";
+        when(tokenBlacklistService.isBlacklisted(token)).thenReturn(false);
+        when(jwtService.extractEmailFromToken(token)).thenReturn("partner@quickbite.com");
+        when(deliveryPartnerRepository.findByEmail(anyString())).thenReturn(Optional.of(testPartner));
+        when(jwtService.validateToken(anyString(), any())).thenReturn(false);
+
+        assertThrows(RuntimeException.class, () -> deliveryPartnerService.refreshToken(token));
+    }
+
+    @Test
+    @DisplayName("Get Profile - Success")
+    void getProfile_Success() {
+        when(deliveryPartnerRepository.findByPartnerId(10L)).thenReturn(Optional.of(testPartner));
+
+        DeliveryPartnerProfileDto result = deliveryPartnerService.getProfile(10L);
+
+        assertEquals("partner@quickbite.com", result.getEmail());
+    }
+
+    @Test
     @DisplayName("Update Profile - Success with all fields")
     void updateProfile_AllFields() {
         DeliveryPartnerUpdateProfileDto updateDto = new DeliveryPartnerUpdateProfileDto();
         updateDto.setVehicleType("Bike");
         updateDto.setVehicleNumber("BR01-1234");
+        updateDto.setProfilePicUrl("http://profile");
         updateDto.setLicenseNumber("LIC999");
         updateDto.setIsOnline(true);
         updateDto.setIsVerified(true);
@@ -114,6 +185,7 @@ class DeliveryPartnerAuthServiceImplTest {
 
         assertEquals("Bike", testPartner.getVehicleType());
         assertEquals("BR01-1234", testPartner.getVehicleNumber());
+        assertEquals("http://profile", testPartner.getProfilePicUrl());
         assertTrue(testPartner.getIsOnline());
         verify(deliveryPartnerRepository).save(testPartner);
     }
@@ -130,6 +202,30 @@ class DeliveryPartnerAuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("Change Password - Wrong Old Password")
+    void changePassword_WrongOldPassword() {
+        PasswordChangeRequestDto dto = new PasswordChangeRequestDto("old", "new", "new");
+        when(deliveryPartnerRepository.findByPartnerId(10L)).thenReturn(Optional.of(testPartner));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        assertThrows(PasswordNotMatchException.class, () -> deliveryPartnerService.changePassword(10L, dto));
+    }
+
+    @Test
+    @DisplayName("Change Password - Success")
+    void changePassword_Success() {
+        PasswordChangeRequestDto dto = new PasswordChangeRequestDto("old", "new", "new");
+        when(deliveryPartnerRepository.findByPartnerId(10L)).thenReturn(Optional.of(testPartner));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+        when(passwordEncoder.encode("new")).thenReturn("encodedNew");
+
+        ResponseDto response = deliveryPartnerService.changePassword(10L, dto);
+
+        assertEquals("Password changed successfully", response.getMessage());
+        verify(deliveryPartnerRepository).save(testPartner);
+    }
+
+    @Test
     @DisplayName("Deactivate Account - Success")
     void deactivate_Success() {
         when(deliveryPartnerRepository.findByPartnerId(10L)).thenReturn(Optional.of(testPartner));
@@ -142,12 +238,52 @@ class DeliveryPartnerAuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("Forget Password - Success")
+    void forgetPassword_Success() {
+        when(deliveryPartnerRepository.findByEmail("partner@quickbite.com")).thenReturn(Optional.of(testPartner));
+        when(otpService.generateOtp("partner@quickbite.com")).thenReturn("4567");
+
+        ResponseDto response = deliveryPartnerService.forgetPassword("partner@quickbite.com");
+
+        assertEquals("OTP sent to your email", response.getMessage());
+        verify(emailService).sendOtpEmail("partner@quickbite.com", "4567");
+    }
+
+    @Test
     @DisplayName("Verify OTP - Invalid Result Branch")
     void verifyOtp_Invalid() {
         when(otpService.verifyOtp(anyString(), anyString()))
                 .thenReturn(OtpService.OtpVerificationResult.INVALID);
 
         assertThrows(RuntimeException.class, () -> deliveryPartnerService.verifyOtp("test@test.com", "0000"));
+    }
+
+    @Test
+    @DisplayName("Verify OTP - Expired Result Branch")
+    void verifyOtp_Expired() {
+        when(otpService.verifyOtp(anyString(), anyString()))
+                .thenReturn(OtpService.OtpVerificationResult.EXPIRED);
+
+        assertThrows(RuntimeException.class, () -> deliveryPartnerService.verifyOtp("test@test.com", "0000"));
+    }
+
+    @Test
+    @DisplayName("Verify OTP - Success")
+    void verifyOtp_Success() {
+        when(otpService.verifyOtp(anyString(), anyString()))
+                .thenReturn(OtpService.OtpVerificationResult.VALID);
+
+        ResponseDto response = deliveryPartnerService.verifyOtp("test@test.com", "0000");
+
+        assertEquals("OTP verified successfully", response.getMessage());
+    }
+
+    @Test
+    @DisplayName("Logout - Blacklists Token")
+    void logout_BlacklistsToken() {
+        deliveryPartnerService.logout("jwt-token");
+
+        verify(tokenBlacklistService).blacklistToken("jwt-token");
     }
 
     @Test
