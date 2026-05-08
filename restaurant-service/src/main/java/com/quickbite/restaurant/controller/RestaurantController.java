@@ -119,4 +119,10 @@ public class RestaurantController {
         restaurantService.deleteRestaurant(id);
         return ResponseEntity.ok("Restaurant deleted successfully");
     }
+
+    @DeleteMapping("/owner/{ownerId}")
+    public ResponseEntity<String> deleteRestaurantsByOwnerId(@PathVariable Long ownerId) {
+        restaurantService.deleteRestaurantsByOwnerId(ownerId);
+        return ResponseEntity.ok("Restaurants deleted successfully");
+    }
 }
