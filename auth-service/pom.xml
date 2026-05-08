@@ -33,7 +33,7 @@
 
 		<!-- SonarQube -->
 		<sonar.projectKey>auth-service</sonar.projectKey>
-		<sonar.projectName>Online Food Delivery App</sonar.projectName>
+		<sonar.projectName>Auth Service</sonar.projectName>
 		<sonar.host.url>http://localhost:9000</sonar.host.url>
 
 		<!-- Coverage report -->
@@ -231,6 +231,12 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+						<configuration>
+							<includes>
+								<include>**/service/*</include>
+								<include>**/controller/*</include>
+							</includes>
+						</configuration>
 					</execution>
 
 					<!-- FAIL BUILD if < 80% -->
