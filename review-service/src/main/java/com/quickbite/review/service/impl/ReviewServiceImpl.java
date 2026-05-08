@@ -10,6 +10,7 @@ import com.quickbite.review.dto.ReviewSubmissionRequest;
 import com.quickbite.review.entity.Review;
 import com.quickbite.review.entity.ReviewEligibility;
 import com.quickbite.review.enums.ReviewType;
+import com.quickbite.review.exception.ReviewNotFoundException;
 import com.quickbite.review.repository.ReviewRepository;
 import com.quickbite.review.service.ReviewAuthorizationValidator;
 import com.quickbite.review.service.ReviewService;
@@ -32,6 +33,13 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     public ReviewResponse createDeliveryReview(ReviewSubmissionRequest request) {
         return createReview(request, ReviewType.DELIVERY);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ReviewResponse getReviewById(Long reviewId) {
+        return toResponse(reviewRepository.findById(reviewId)
+            .orElseThrow(() -> new ReviewNotFoundException(reviewId)));
     }
 
     @Override
