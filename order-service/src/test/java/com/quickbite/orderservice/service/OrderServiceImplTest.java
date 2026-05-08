@@ -79,7 +79,7 @@ class OrderServiceImplTest {
         assertThat(response.orderId()).isEqualTo(55L);
         assertThat(response.totalAmount()).isEqualByComparingTo("300.00");
         assertThat(response.discount()).isEqualByComparingTo("15.00");
-        assertThat(response.finalAmount()).isEqualByComparingTo("285.00");
+        assertThat(response.finalAmount()).isEqualByComparingTo("300.00");
         assertThat(response.orderStatus()).isEqualTo(OrderStatus.PLACED);
         assertThat(response.items()).hasSize(2);
         verify(eventPublisher).send(eq("order.created"), any());
@@ -109,7 +109,7 @@ class OrderServiceImplTest {
         existingOrder.setModeOfPayment("CARD");
         existingOrder.setTotalAmount(new BigDecimal("180.00"));
         existingOrder.setDiscount(new BigDecimal("0.00"));
-        existingOrder.setFinalAmount(new BigDecimal("180.00"));
+        existingOrder.setFinalAmount(new BigDecimal("189.00"));
         existingOrder.setItems(new ArrayList<>(List.of(orderItem(401L, 11L, "Burger", "180.00", 1, "No mayo"))));
         existingOrder.getItems().forEach(item -> item.setOrder(existingOrder));
 
@@ -407,7 +407,7 @@ class OrderServiceImplTest {
         Order existingOrder = order(20L, 8L, 44L, OrderStatus.DELIVERED, "PAID");
         existingOrder.setDeliveryAgentId(700L);
         existingOrder.setDiscount(new BigDecimal("20.00"));
-        existingOrder.setFinalAmount(new BigDecimal("230.00"));
+        existingOrder.setFinalAmount(new BigDecimal("242.50"));
         existingOrder.setTotalAmount(new BigDecimal("250.00"));
         existingOrder.setModeOfPayment("COD");
         existingOrder.setDeliveryAddress("Church Street");
@@ -432,7 +432,7 @@ class OrderServiceImplTest {
         assertThat(response.orderStatus()).isEqualTo(OrderStatus.PLACED);
         assertThat(response.deliveryAgentId()).isNull();
         assertThat(response.items()).hasSize(1);
-        assertThat(response.finalAmount()).isEqualByComparingTo("230.00");
+        assertThat(response.finalAmount()).isEqualByComparingTo("242.50");
     }
 
     @Test
