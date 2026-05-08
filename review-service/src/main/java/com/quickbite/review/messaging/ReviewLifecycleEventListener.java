@@ -31,9 +31,9 @@ public class ReviewLifecycleEventListener {
     )
     public void handleOrderDelivered(OrderEventDTO event, Message message, Channel channel) throws IOException {
         try {
-            OrderDto order = orderClient.getOrderById(event.orderId());
+            OrderDto order = resolveOrder(event);
             if (order != null && order.getCustomerId() != null && order.getRestaurantId() != null && order.getAgentId() != null) {
-                reviewEligibilityRepository.findByOrderId(event.orderId())
+                ReviewEligibility persistedEligibility = reviewEligibilityRepository.findByOrderId(event.orderId())
                     .map(existing -> updateEligibility(existing, order))
                     .orElseGet(() -> reviewEligibilityRepository.save(ReviewEligibility.builder()
                         .orderId(order.getOrderId())
@@ -43,12 +43,26 @@ public class ReviewLifecycleEventListener {
                         .eligible(true)
                         .enabledAt(LocalDateTime.now())
                         .build()));
+                persistedEligibility.setEligible(true);
             }
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
         } catch (Exception exception) {
             channel.basicNack(message.getMessageProperties().getDeliveryTag(), false, false);
             throw exception;
         }
+    }
+
+    private OrderDto resolveOrder(OrderEventDTO event) {
+        if (event.customerId() != null && event.restaurantId() != null && event.deliveryAgentId() != null) {
+            OrderDto order = new OrderDto();
+            order.setOrderId(event.orderId());
+            order.setCustomerId(event.customerId());
+            order.setRestaurantId(event.restaurantId());
+            order.setAgentId(event.deliveryAgentId());
+            return order;
+        }
+
+        return orderClient.getOrderById(event.orderId());
     }
 
     private ReviewEligibility updateEligibility(ReviewEligibility existing, OrderDto order) {
