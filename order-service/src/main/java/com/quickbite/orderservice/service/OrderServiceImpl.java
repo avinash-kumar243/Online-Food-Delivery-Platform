@@ -19,6 +19,8 @@ import com.quickbite.orderservice.dto.OrderItemResponse;
 import com.quickbite.orderservice.dto.OrderResponse;
 import com.quickbite.orderservice.dto.PlaceOrderItemRequest;
 import com.quickbite.orderservice.dto.PlaceOrderRequest;
+import com.quickbite.orderservice.client.RestaurantClient;
+import com.quickbite.orderservice.client.dto.RestaurantRealtimeDto;
 import com.quickbite.orderservice.entity.Order;
 import com.quickbite.orderservice.entity.OrderItem;
 import com.quickbite.orderservice.entity.OrderStatus;
@@ -50,6 +52,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final GenericEventPublisher eventPublisher;
     private final RealtimeNotifier realtimeNotifier;
+    private final RestaurantClient restaurantClient;
 
     @Override
     @Transactional
@@ -63,6 +66,8 @@ public class OrderServiceImpl implements OrderService {
         if (latestCustomerOrder.isPresent() && isDuplicatePlacement(latestCustomerOrder.get(), request)) {
             return toResponse(latestCustomerOrder.get());
         }
+
+        ensureRestaurantAcceptingOrders(request.restaurantId());
 
         BigDecimal totalAmount = calculateTotal(request.items());
         BigDecimal discount = normalizeMoney(request.discount() == null ? ZERO : request.discount());
@@ -197,7 +202,8 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponse updatePaymentStatus(Long orderId, String paymentStatus) {
         Order order = fetchOrder(orderId);
-        order.setPaymentStatus(paymentStatus == null || paymentStatus.isBlank() ? "PENDING" : paymentStatus.trim().toUpperCase());
+        String normalizedPaymentStatus = normalizePaymentStatus(paymentStatus);
+        order.setPaymentStatus(normalizedPaymentStatus);
         Order savedOrder = orderRepository.save(order);
         realtimeNotifier.publishOrderUpdated(savedOrder);
         return toResponse(savedOrder);
@@ -332,6 +338,15 @@ public class OrderServiceImpl implements OrderService {
         return value == null ? null : value.trim();
     }
 
+    private String normalizePaymentStatus(String paymentStatus) {
+        if (paymentStatus == null) {
+            return "PENDING";
+        }
+
+        String trimmedPaymentStatus = paymentStatus.trim();
+        return trimmedPaymentStatus.isBlank() ? "PENDING" : trimmedPaymentStatus.toUpperCase();
+    }
+
     private BigDecimal normalizeMoney(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
@@ -345,6 +360,7 @@ public class OrderServiceImpl implements OrderService {
             order.getOrderId(),
             order.getCustomerId(),
             order.getRestaurantId(),
+            order.getDeliveryAgentId(),
             order.getFinalAmount(),
             LocalDateTime.now()
         );
@@ -405,7 +421,7 @@ public class OrderServiceImpl implements OrderService {
             if (existingItem.getPrice().compareTo(normalizeMoney(requestItem.price())) != 0) {
                 return false;
             }
-            if (existingItem.getQuantity() != requestItem.quantity()) {
+            if (!Objects.equals(existingItem.getQuantity(), requestItem.quantity())) {
                 return false;
             }
             if (!Objects.equals(normalizeText(existingItem.getCustomization()), normalizeText(requestItem.customization()))) {
@@ -414,6 +430,13 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return true;
+    }
+
+    private void ensureRestaurantAcceptingOrders(Long restaurantId) {
+        RestaurantRealtimeDto restaurant = restaurantClient.getRestaurantById(restaurantId);
+        if (restaurant == null || !Boolean.TRUE.equals(restaurant.isApproved()) || !Boolean.TRUE.equals(restaurant.isOpen())) {
+            throw new BadRequestException("This restaurant is currently closed and not accepting orders");
+        }
     }
 
     private static Map<OrderStatus, Set<OrderStatus>> buildTransitions() {
