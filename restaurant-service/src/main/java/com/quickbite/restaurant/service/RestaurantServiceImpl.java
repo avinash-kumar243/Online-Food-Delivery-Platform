@@ -85,6 +85,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     public List<RestaurantResponse> getApprovedRestaurants() {
 
         List<RestaurantResponse> restaurantResponseList = restaurantRepository.findByApprovalStatusAndIsApprovedTrue(ApprovalStatus.APPROVED).stream()
+            .filter(this::hasActiveOwner)
             .sorted(Comparator.comparing(Restaurant::getName, String.CASE_INSENSITIVE_ORDER))
             .map(restaurantMapper::toResponse)
             .toList();
@@ -98,6 +99,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     @Transactional(readOnly = true)
     public List<RestaurantResponse> searchRestaurants(String name, String city, String cuisine) {
         List<RestaurantResponse> restaurantList =  restaurantRepository.findByApprovalStatusAndIsApprovedTrue(ApprovalStatus.APPROVED).stream()
+            .filter(this::hasActiveOwner)
             .filter(restaurant -> containsIgnoreCase(restaurant.getName(), name))
             .filter(restaurant -> equalsIgnoreCase(restaurant.getCity(), city))
             .filter(restaurant -> equalsIgnoreCase(restaurant.getCuisine(), cuisine))
@@ -115,6 +117,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     @Transactional(readOnly = true)
     public List<RestaurantResponse> findNearbyRestaurants(double latitude, double longitude, double radiusKm) {
         List<RestaurantResponse> nearbyRestaurants = restaurantRepository.findByIsOpenTrueAndIsApprovedTrue().stream()
+            .filter(this::hasActiveOwner)
             .map(restaurant -> new RestaurantDistance(restaurant, calculateDistance(
                 latitude,
                 longitude,
@@ -280,6 +283,14 @@ public class RestaurantServiceImpl implements RestaurantService {
                 restaurant.getName());
     }
 
+    @Override
+    @Transactional
+    public void deleteRestaurantsByOwnerId(Long ownerId) {
+        restaurantRepository.deleteByOwnerId(ownerId);
+
+        log.info("Restaurants deleted successfully for ownerId={}", ownerId);
+    }
+
     private Restaurant getRestaurant(Long restaurantId) {
         return restaurantRepository.findById(restaurantId)
             .orElseThrow(() -> {
@@ -301,6 +312,19 @@ public class RestaurantServiceImpl implements RestaurantService {
         }
 
         return restaurantMapper.toAdminResponse(restaurant, owner);
+    }
+
+    private boolean hasActiveOwner(Restaurant restaurant) {
+        try {
+            UserSummaryDto owner = authServiceClient.getUserSummary("RESTAURANT_OWNER", restaurant.getOwnerId());
+            return owner != null && Boolean.TRUE.equals(owner.isActive()) && "ACTIVE".equalsIgnoreCase(owner.status());
+        } catch (RuntimeException exception) {
+            log.warn("Restaurant filtered out because owner is unavailable. restaurantId={}, ownerId={}, error={}",
+                    restaurant.getRestaurantId(),
+                    restaurant.getOwnerId(),
+                    exception.getMessage());
+            return false;
+        }
     }
 
     private boolean containsIgnoreCase(String value, String search) {
