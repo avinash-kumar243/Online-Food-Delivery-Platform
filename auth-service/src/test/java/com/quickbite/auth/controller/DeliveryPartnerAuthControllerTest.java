@@ -121,7 +121,7 @@ class DeliveryPartnerAuthControllerTest {
     @DisplayName("PUT /profile/{id} - Success")
     void updateProfile_Success() throws Exception {
         DeliveryPartnerUpdateProfileDto update = new DeliveryPartnerUpdateProfileDto(
-                "Bike", "MH12-1234", "url", "LIC123", true, true
+                "Partner Name", "9998887776", "Bike", "MH12-1234", "url", "LIC123", true, true
         );
         DeliveryPartnerProfileDto responseProfile = new DeliveryPartnerProfileDto();
         responseProfile.setVehicleNumber("MH12-1234");
