@@ -20,6 +20,7 @@ import com.quickbite.menu.dto.RestaurantMenuResponse;
 import com.quickbite.menu.entity.MenuCategory;
 import com.quickbite.menu.entity.MenuItem;
 import com.quickbite.menu.exception.BadRequestException;
+import com.quickbite.menu.exception.MenuNotFoundException;
 import com.quickbite.menu.exception.NotFoundException;
 import com.quickbite.menu.repository.MenuCategoryRepository;
 import com.quickbite.menu.repository.MenuItemRepository;
@@ -61,8 +62,8 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional
     public MenuItemResponse addItem(MenuItemRequest request) {
-        ensureRestaurantApproved(request.restaurantId());
-        validateDiscountedPrice(request.price(), request.discountedPrice());
+        RestaurantSnapshotDto restaurant = ensureRestaurantApproved(request.restaurantId());
+        validateItemPricing(request.price(), request.discountedPrice(), restaurant.minOrderAmount());
         MenuCategory category = getCategory(request.categoryId());
         validateRestaurantOwnership(request.restaurantId(), category.getRestaurantId());
 
@@ -97,8 +98,8 @@ public class MenuServiceImpl implements MenuService {
             throw new BadRequestException("itemId is required for update");
         }
 
-        ensureRestaurantApproved(request.restaurantId());
-        validateDiscountedPrice(request.price(), request.discountedPrice());
+        RestaurantSnapshotDto restaurant = ensureRestaurantApproved(request.restaurantId());
+        validateItemPricing(request.price(), request.discountedPrice(), restaurant.minOrderAmount());
         MenuItem item = getItemEntity(request.itemId());
         MenuCategory category = getCategory(request.categoryId());
         validateRestaurantOwnership(request.restaurantId(), category.getRestaurantId());
@@ -215,7 +216,7 @@ public class MenuServiceImpl implements MenuService {
     }
 
     public MenuItemResponse getItemByIdFallback(Integer itemId, Throwable throwable) {
-        throw new NotFoundException("Menu item unavailable: " + itemId);
+        throw new MenuNotFoundException("Menu item unavailable: " + itemId);
     }
 
     public List<MenuItemResponse> searchItemsFallback(String query, Throwable throwable) {
@@ -230,15 +231,23 @@ public class MenuServiceImpl implements MenuService {
 
     private MenuCategory getCategory(Integer categoryId) {
         return categoryRepository.findById(categoryId)
-            .orElseThrow(() -> new NotFoundException("Menu category not found with id: " + categoryId));
+            .orElseThrow(() -> new MenuNotFoundException("Menu category not found with id: " + categoryId));
     }
 
     private MenuItem getItemEntity(Integer itemId) {
         return itemRepository.findById(itemId)
-            .orElseThrow(() -> new NotFoundException("Menu item not found with id: " + itemId));
+            .orElseThrow(() -> new MenuNotFoundException("Menu item not found with id: " + itemId));
     }
 
-    private void validateDiscountedPrice(Double price, Double discountedPrice) {
+    private void validateItemPricing(Double price, Double discountedPrice, Integer minOrderAmount) {
+        if (minOrderAmount != null && price < minOrderAmount) {
+            throw new BadRequestException("price must be at least the restaurant minimum order amount of Rs " + minOrderAmount);
+        }
+
+        if (discountedPrice != null && discountedPrice > 0 && minOrderAmount != null && discountedPrice < minOrderAmount) {
+            throw new BadRequestException("discountedPrice must be at least the restaurant minimum order amount of Rs " + minOrderAmount);
+        }
+
         if (discountedPrice != null && discountedPrice >= price) {
             throw new BadRequestException("discountedPrice must be less than price");
         }
@@ -250,11 +259,12 @@ public class MenuServiceImpl implements MenuService {
         }
     }
 
-    private void ensureRestaurantApproved(Integer restaurantId) {
+    private RestaurantSnapshotDto ensureRestaurantApproved(Integer restaurantId) {
         RestaurantSnapshotDto restaurant = restaurantServiceClient.getRestaurant(restaurantId.longValue());
         if (restaurant == null || !Boolean.TRUE.equals(restaurant.isApproved())) {
             throw new BadRequestException("Menu management is available only for approved restaurants");
         }
+        return restaurant;
     }
 
     private void evictRestaurantCache(Integer restaurantId) {
