@@ -39,6 +39,7 @@ public class RestaurantLifecycleEventListener {
                 event.orderId(),
                 event.customerId(),
                 event.restaurantId(),
+                event.deliveryAgentId(),
                 event.amount(),
                 LocalDateTime.now()
             ));
