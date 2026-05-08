@@ -155,7 +155,7 @@ class CartServiceImplTest {
     }
 
     @Test
-    void addItemToCart_WhenRestaurantDiffers_ThrowsBadRequest() {
+    void addItemToCart_WhenRestaurantDiffers_ClearsExistingItemsAndAddsNewRestaurantItem() {
         CartItem oldItem = cartItem(1L, 20L, "Pizza", 200.0, 1, "Thin crust");
         Cart existingCart = cart(5L, 2L, 99L, List.of(oldItem));
         existingCart.setTotalPrice(200.0);
@@ -163,10 +163,22 @@ class CartServiceImplTest {
 
         when(cartRepository.findByCustomerId(2L)).thenReturn(Optional.of(existingCart));
         when(menuServiceClient.getMenuItem(101)).thenReturn(menuItemSnapshot(101, 50, "Pasta", 180.0, null, true));
+        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> {
+            Cart cart = invocation.getArgument(0);
+            cart.getItems().forEach(item -> item.setItemId(99L));
+            return cart;
+        });
 
-        assertThatThrownBy(() -> cartService.addItemToCart(request))
-            .isInstanceOf(BadRequestException.class)
-            .hasMessageContaining("another restaurant");
+        var response = cartService.addItemToCart(request);
+
+        assertThat(response.restaurantId()).isEqualTo(50L);
+        assertThat(response.totalPrice()).isEqualTo(180.0);
+        assertThat(response.items()).singleElement().satisfies(item -> {
+            assertThat(item.menuItemId()).isEqualTo(101L);
+            assertThat(item.name()).isEqualTo("Pasta");
+            assertThat(item.quantity()).isEqualTo(1);
+            assertThat(item.lineTotal()).isEqualTo(180.0);
+        });
     }
 
     @Test
