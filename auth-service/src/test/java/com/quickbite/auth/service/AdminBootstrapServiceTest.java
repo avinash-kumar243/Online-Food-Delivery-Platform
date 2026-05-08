@@ -77,4 +77,17 @@ class AdminBootstrapServiceTest {
         verify(adminUserRepository, never()).existsByEmail(anyString());
         verify(adminUserRepository, never()).save(any(AdminUser.class));
     }
+
+    @Test
+    @DisplayName("Run - Should Skip when Bootstrap Password is Missing")
+    void run_SkipWhenPasswordMissing() throws Exception {
+        ReflectionTestUtils.setField(adminBootstrapService, "adminPassword", "   ");
+        when(adminUserRepository.existsByEmail("admin@quickbite.local")).thenReturn(false);
+
+        adminBootstrapService.run();
+
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(adminUserRepository, never()).save(any(AdminUser.class));
+        verify(emailService, never()).sendUserCreatedEmail(any(), anyString(), anyString(), anyString());
+    }
 }
