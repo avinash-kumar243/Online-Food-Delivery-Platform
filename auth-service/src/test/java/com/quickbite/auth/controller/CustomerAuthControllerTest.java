@@ -82,7 +82,10 @@ class CustomerAuthControllerTest {
     @Test
     @DisplayName("PUT /profile/{id} - Success Update Pic")
     void updateProfile_Success() throws Exception {
-        CustomerUpdateProfileDto updateDto = new CustomerUpdateProfileDto("http://images.com/new-pic.jpg");
+        CustomerUpdateProfileDto updateDto = new CustomerUpdateProfileDto();
+        updateDto.setFullName("Avinash Kumar");
+        updateDto.setPhone("9876543210");
+        updateDto.setProfilePicUrl("http://images.com/new-pic.jpg");
         CustomerProfileDto updatedProfile = new CustomerProfileDto(
                 1L, "Avinash Kumar", "avi@test.com", "9876543210", true, "http://images.com/new-pic.jpg", LocalDateTime.now()
         );
