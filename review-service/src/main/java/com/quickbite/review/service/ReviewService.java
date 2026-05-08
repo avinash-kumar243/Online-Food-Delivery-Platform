@@ -11,6 +11,8 @@ public interface ReviewService {
 
     ReviewResponse createDeliveryReview(ReviewSubmissionRequest request);
 
+    ReviewResponse getReviewById(Long reviewId);
+
     List<ReviewResponse> getReviewsByRestaurantId(Long restaurantId);
 
     List<ReviewResponse> getReviewsByCustomerId(Long customerId);
