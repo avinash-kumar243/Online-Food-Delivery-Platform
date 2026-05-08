@@ -59,7 +59,7 @@ class OrderControllerTest {
             null,
             new BigDecimal("300.00"),
             new BigDecimal("20.00"),
-            new BigDecimal("280.00"),
+            new BigDecimal("295.00"),
             "CARD",
             "PENDING",
             OrderStatus.PLACED,
@@ -82,7 +82,7 @@ class OrderControllerTest {
                     """))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.orderId").value(1))
-            .andExpect(jsonPath("$.finalAmount").value(280.00));
+            .andExpect(jsonPath("$.finalAmount").value(295.00));
     }
 
     @Test
