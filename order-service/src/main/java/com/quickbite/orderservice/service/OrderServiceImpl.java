@@ -39,6 +39,7 @@ import lombok.RequiredArgsConstructor;
 public class OrderServiceImpl implements OrderService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    private static final BigDecimal TAX_RATE = new BigDecimal("0.05");
     private static final EnumSet<OrderStatus> ACTIVE_STATUSES = EnumSet.of(
         OrderStatus.PLACED,
         OrderStatus.CONFIRMED,
@@ -70,9 +71,10 @@ public class OrderServiceImpl implements OrderService {
         ensureRestaurantAcceptingOrders(request.restaurantId());
 
         BigDecimal totalAmount = calculateTotal(request.items());
+        BigDecimal taxAmount = calculateTax(totalAmount);
         BigDecimal discount = normalizeMoney(request.discount() == null ? ZERO : request.discount());
 
-        if (discount.compareTo(totalAmount) > 0) {
+        if (discount.compareTo(totalAmount.add(taxAmount)) > 0) {
             throw new BadRequestException("discount cannot exceed totalAmount");
         }
 
@@ -83,7 +85,7 @@ public class OrderServiceImpl implements OrderService {
             .deliveryAgentId(null)
             .totalAmount(totalAmount)
             .discount(discount)
-            .finalAmount(totalAmount.subtract(discount))
+            .finalAmount(totalAmount.add(taxAmount).subtract(discount))
             .modeOfPayment(request.modeOfPayment().trim())
             .paymentStatus("PENDING")
             .orderStatus(OrderStatus.PLACED)
@@ -292,6 +294,10 @@ public class OrderServiceImpl implements OrderService {
             .reduce(BigDecimal.ZERO, BigDecimal::add));
     }
 
+    private BigDecimal calculateTax(BigDecimal amount) {
+        return normalizeMoney(amount.multiply(TAX_RATE));
+    }
+
     private OrderItem toOrderItem(PlaceOrderItemRequest item) {
         return OrderItem.builder()
             .menuItemId(item.menuItemId())
@@ -391,8 +397,9 @@ public class OrderServiceImpl implements OrderService {
         }
 
         BigDecimal totalAmount = calculateTotal(request.items());
+        BigDecimal taxAmount = calculateTax(totalAmount);
         BigDecimal discount = normalizeMoney(request.discount() == null ? ZERO : request.discount());
-        BigDecimal finalAmount = totalAmount.subtract(discount);
+        BigDecimal finalAmount = totalAmount.add(taxAmount).subtract(discount);
 
         if (existingOrder.getTotalAmount().compareTo(totalAmount) != 0
             || existingOrder.getDiscount().compareTo(discount) != 0
