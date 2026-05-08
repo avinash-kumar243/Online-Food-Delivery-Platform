@@ -133,6 +133,12 @@ public class CustomerAuthServiceImpl implements ICustomerAuthService {
 		Customer customer = customerRepository.findByCustomerId(customerId)
 				.orElseThrow(() -> new AccountNotFoundException("Customer not found with id: " + customerId));
 
+		if(updateDto.getFullName() != null) {
+			customer.setFullName(updateDto.getFullName());
+		}
+		if(updateDto.getPhone() != null) {
+			customer.setPhone(updateDto.getPhone());
+		}
 		if(updateDto.getProfilePicUrl() != null) {
 			customer.setProfilePicUrl(updateDto.getProfilePicUrl());
 		}
