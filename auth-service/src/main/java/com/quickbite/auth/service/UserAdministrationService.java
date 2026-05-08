@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.quickbite.auth.client.RestaurantServiceClient;
 import com.quickbite.auth.dto.InternalUserSummaryDto;
 import com.quickbite.auth.dto.PlatformUserDto;
 import com.quickbite.auth.entity.AdminUser;
@@ -30,6 +31,7 @@ public class UserAdministrationService {
     private final AdminUserRepository adminUserRepository;
     private final UserStatusSupport userStatusSupport;
     private final EmailService emailService;
+    private final RestaurantServiceClient restaurantServiceClient;
 
     @Transactional(readOnly = true)
     public List<PlatformUserDto> getAllUsers() {
@@ -115,6 +117,7 @@ public class UserAdministrationService {
     private void deleteRestaurantOwner(Long userId) {
         RestaurantOwner owner = restaurantOwnerRepository.findByOwnerId(userId)
                 .orElseThrow(() -> new RuntimeException("Restaurant owner not found"));
+        restaurantServiceClient.deleteRestaurantsByOwnerId(owner.getOwnerId());
         emailService.sendUserDeletedEmail(
             owner.getOwnerId(),
             owner.getFullName(),
