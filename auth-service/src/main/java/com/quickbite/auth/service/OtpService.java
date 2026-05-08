@@ -2,18 +2,19 @@ package com.quickbite.auth.service;
 
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OtpService {
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private final Map<String, OtpData> otpStore = new ConcurrentHashMap<>();
     private static final long OTP_VALIDITY_MS = 60 * 1000;
 
     public String generateOtp(String email) {
-        String otp = String.format("%06d", new Random().nextInt(1000000));
+        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         otpStore.put(email, new OtpData(otp, System.currentTimeMillis()));
         return otp;
     }
