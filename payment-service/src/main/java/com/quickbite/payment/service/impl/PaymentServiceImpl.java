@@ -66,15 +66,18 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public CreatePaymentOrderResponse createRazorpayOrder(CreatePaymentOrderRequest request) {
-        Payment payment = paymentRepository.findByOrderIdForUpdate(request.orderId())
-            .map(existingPayment -> preparePendingRazorpayPayment(existingPayment, request))
-            .orElseGet(() -> getOrCreatePendingOnlinePayment(request));
+        OrderSnapshotDto order = orderServiceClient.getOrderById(request.orderId());
+        var payableAmount = resolvePayableAmount(request, order);
 
-        Order razorpayOrder = razorpayGateway.createOrder(request.amount(), request.currency(), "QB-" + request.orderId());
+        Payment payment = paymentRepository.findByOrderIdForUpdate(request.orderId())
+            .map(existingPayment -> preparePendingRazorpayPayment(existingPayment, request, payableAmount))
+            .orElseGet(() -> getOrCreatePendingOnlinePayment(request, payableAmount));
+
+        Order razorpayOrder = razorpayGateway.createOrder(payableAmount, request.currency(), "QB-" + request.orderId());
         payment.setRazorpayOrderId(razorpayOrder.get("id"));
 
         Payment savedPayment = paymentRepository.save(payment);
-        long amountInPaise = request.amount().movePointRight(2).longValueExact();
+        long amountInPaise = payableAmount.movePointRight(2).longValueExact();
 
         return new CreatePaymentOrderResponse(
             savedPayment.getPaymentId(),
@@ -126,9 +129,12 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public PaymentResponse createCodPayment(CodPaymentRequest request) {
+        OrderSnapshotDto order = orderServiceClient.getOrderById(request.orderId());
+        var payableAmount = resolvePayableAmount(request.orderId(), order);
+
         Payment payment = paymentRepository.findByOrderIdForUpdate(request.orderId())
-            .map(existingPayment -> prepareCodPayment(existingPayment, request))
-            .orElseGet(() -> getOrCreatePendingCodPayment(request));
+            .map(existingPayment -> prepareCodPayment(existingPayment, request, payableAmount))
+            .orElseGet(() -> getOrCreatePendingCodPayment(request, payableAmount));
 
         Payment savedPayment = paymentRepository.save(payment);
         return mapToPaymentResponse(savedPayment);
@@ -307,34 +313,35 @@ public class PaymentServiceImpl implements PaymentService {
         return null;
     }
 
-    private Payment buildPendingRazorpayPayment(CreatePaymentOrderRequest request) {
+    private Payment buildPendingRazorpayPayment(CreatePaymentOrderRequest request, java.math.BigDecimal payableAmount) {
         return Payment.builder()
             .orderId(request.orderId())
             .customerId(request.customerId())
-            .amount(request.amount())
+            .amount(payableAmount)
             .status(PaymentStatus.PENDING)
             .mode(parseOnlinePaymentMode(request.paymentMode()))
             .currency(request.currency())
             .build();
     }
 
-    private Payment getOrCreatePendingOnlinePayment(CreatePaymentOrderRequest request) {
+    private Payment getOrCreatePendingOnlinePayment(CreatePaymentOrderRequest request, java.math.BigDecimal payableAmount) {
         try {
-            return paymentRepository.saveAndFlush(buildPendingRazorpayPayment(request));
+            return paymentRepository.saveAndFlush(buildPendingRazorpayPayment(request, payableAmount));
         } catch (DataIntegrityViolationException exception) {
             entityManager.clear();
             return paymentRepository.findByOrderIdForUpdate(request.orderId())
-                .map(existingPayment -> preparePendingRazorpayPayment(existingPayment, request))
+                .map(existingPayment -> preparePendingRazorpayPayment(existingPayment, request, payableAmount))
                 .orElseThrow(() -> exception);
         }
     }
 
-    private Payment preparePendingRazorpayPayment(Payment payment, CreatePaymentOrderRequest request) {
+    private Payment preparePendingRazorpayPayment(Payment payment, CreatePaymentOrderRequest request,
+                                                  java.math.BigDecimal payableAmount) {
         if (payment.getStatus() == PaymentStatus.PAID) {
             throw new PaymentException("Payment is already completed for this order");
         }
         payment.setCustomerId(request.customerId());
-        payment.setAmount(request.amount());
+        payment.setAmount(payableAmount);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setMode(parseOnlinePaymentMode(request.paymentMode()));
         payment.setCurrency(request.currency());
@@ -346,34 +353,46 @@ public class PaymentServiceImpl implements PaymentService {
         return payment;
     }
 
-    private Payment buildCodPayment(CodPaymentRequest request) {
+    private java.math.BigDecimal resolvePayableAmount(CreatePaymentOrderRequest request, OrderSnapshotDto order) {
+        return resolvePayableAmount(request.orderId(), order);
+    }
+
+    private java.math.BigDecimal resolvePayableAmount(Long orderId, OrderSnapshotDto order) {
+        if (order == null || order.finalAmount() == null) {
+            throw new PaymentException("Unable to resolve payable amount for order " + orderId);
+        }
+
+        return order.finalAmount();
+    }
+
+    private Payment buildCodPayment(CodPaymentRequest request, java.math.BigDecimal payableAmount) {
         return Payment.builder()
             .orderId(request.orderId())
             .customerId(request.customerId())
-            .amount(request.amount())
+            .amount(payableAmount)
             .status(PaymentStatus.PENDING)
             .mode(PaymentMode.COD)
             .currency("INR")
             .build();
     }
 
-    private Payment getOrCreatePendingCodPayment(CodPaymentRequest request) {
+    private Payment getOrCreatePendingCodPayment(CodPaymentRequest request, java.math.BigDecimal payableAmount) {
         try {
-            return paymentRepository.saveAndFlush(buildCodPayment(request));
+            return paymentRepository.saveAndFlush(buildCodPayment(request, payableAmount));
         } catch (DataIntegrityViolationException exception) {
             entityManager.clear();
             return paymentRepository.findByOrderIdForUpdate(request.orderId())
-                .map(existingPayment -> prepareCodPayment(existingPayment, request))
+                .map(existingPayment -> prepareCodPayment(existingPayment, request, payableAmount))
                 .orElseThrow(() -> exception);
         }
     }
 
-    private Payment prepareCodPayment(Payment payment, CodPaymentRequest request) {
+    private Payment prepareCodPayment(Payment payment, CodPaymentRequest request, java.math.BigDecimal payableAmount) {
         if (payment.getStatus() == PaymentStatus.PAID) {
             throw new PaymentException("Payment is already completed for this order");
         }
         payment.setCustomerId(request.customerId());
-        payment.setAmount(request.amount());
+        payment.setAmount(payableAmount);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setMode(PaymentMode.COD);
         payment.setCurrency("INR");
