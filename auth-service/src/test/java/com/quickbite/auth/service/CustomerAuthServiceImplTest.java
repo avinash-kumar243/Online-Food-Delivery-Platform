@@ -77,6 +77,15 @@ class CustomerAuthServiceImplTest {
         assertThrows(RuntimeException.class, () -> customerAuthService.register(registerDto));
     }
 
+    @Test
+    @DisplayName("Register - Throws Exception when Phone Exists")
+    void register_PhoneExists() {
+        when(customerRepository.existsByEmail(anyString())).thenReturn(false);
+        when(customerRepository.existsByPhone(anyString())).thenReturn(true);
+
+        assertThrows(RuntimeException.class, () -> customerAuthService.register(registerDto));
+    }
+
     // --- LOGIN TESTS ---
 
     @Test
@@ -125,6 +134,41 @@ class CustomerAuthServiceImplTest {
         assertThrows(RuntimeException.class, () -> customerAuthService.refreshToken("black-token"));
     }
 
+    @Test
+    @DisplayName("Refresh Token - Throws Exception if Token Invalid")
+    void refreshToken_InvalidToken() {
+        String token = "old-token";
+        when(tokenBlacklistService.isBlacklisted(token)).thenReturn(false);
+        when(jwtService.extractEmailFromToken(token)).thenReturn("test@gmail.com");
+        when(customerRepository.findByEmail(anyString())).thenReturn(Optional.of(testCustomer));
+        when(jwtService.validateToken(anyString(), any())).thenReturn(false);
+
+        assertThrows(RuntimeException.class, () -> customerAuthService.refreshToken(token));
+    }
+
+    @Test
+    @DisplayName("Get Profile - Success")
+    void getProfile_Success() {
+        when(customerRepository.findByCustomerId(1L)).thenReturn(Optional.of(testCustomer));
+
+        CustomerProfileDto response = customerAuthService.getProfile(1L);
+
+        assertEquals(testCustomer.getEmail(), response.getEmail());
+    }
+
+    @Test
+    @DisplayName("Update Profile Picture - Success")
+    void updateProfilePic_Success() {
+        CustomerUpdateProfileDto dto = new CustomerUpdateProfileDto();
+        dto.setProfilePicUrl("http://image");
+        when(customerRepository.findByCustomerId(1L)).thenReturn(Optional.of(testCustomer));
+
+        CustomerProfileDto response = customerAuthService.updateProfilePic(1L, dto);
+
+        assertEquals("http://image", response.getProfilePicUrl());
+        verify(customerRepository).save(testCustomer);
+    }
+
     // --- PROFILE & PASSWORD TESTS ---
 
     @Test
@@ -151,7 +195,29 @@ class CustomerAuthServiceImplTest {
         assertThrows(RuntimeException.class, () -> customerAuthService.changePassword(1L, dto));
     }
 
+    @Test
+    @DisplayName("Change Password - Wrong Old Password Throws Exception")
+    void changePassword_WrongOldPassword() {
+        PasswordChangeRequestDto dto = new PasswordChangeRequestDto("old", "new", "new");
+        when(customerRepository.findByCustomerId(1L)).thenReturn(Optional.of(testCustomer));
+        when(passwordEncoder.matches("old", testCustomer.getPasswordHash())).thenReturn(false);
+
+        assertThrows(PasswordNotMatchException.class, () -> customerAuthService.changePassword(1L, dto));
+    }
+
     // --- OTP & RESET TESTS ---
+
+    @Test
+    @DisplayName("Forget Password - Success")
+    void forgetPassword_Success() {
+        when(customerRepository.findByEmail("test@gmail.com")).thenReturn(Optional.of(testCustomer));
+        when(otpService.generateOtp("test@gmail.com")).thenReturn("1234");
+
+        ResponseDto response = customerAuthService.forgetPassword("test@gmail.com");
+
+        assertEquals("OTP sent to your email", response.getMessage());
+        verify(emailService).sendOtpEmail("test@gmail.com", "1234");
+    }
 
     @Test
     @DisplayName("Verify OTP - Success")
@@ -162,6 +228,36 @@ class CustomerAuthServiceImplTest {
         ResponseDto response = customerAuthService.verifyOtp("test@gmail.com", "1234");
 
         assertEquals("OTP verified successfully", response.getMessage());
+    }
+
+    @Test
+    @DisplayName("Verify OTP - Invalid")
+    void verifyOtp_Invalid() {
+        when(otpService.verifyOtp("test@gmail.com", "1234"))
+                .thenReturn(OtpService.OtpVerificationResult.INVALID);
+
+        assertThrows(RuntimeException.class, () -> customerAuthService.verifyOtp("test@gmail.com", "1234"));
+    }
+
+    @Test
+    @DisplayName("Verify OTP - Expired")
+    void verifyOtp_Expired() {
+        when(otpService.verifyOtp("test@gmail.com", "1234"))
+                .thenReturn(OtpService.OtpVerificationResult.EXPIRED);
+
+        assertThrows(RuntimeException.class, () -> customerAuthService.verifyOtp("test@gmail.com", "1234"));
+    }
+
+    @Test
+    @DisplayName("Reset Password - Success")
+    void resetPassword_Success() {
+        when(customerRepository.findByEmail("test@gmail.com")).thenReturn(Optional.of(testCustomer));
+        when(passwordEncoder.encode("newPassword")).thenReturn("encodedNewPassword");
+
+        ResponseDto response = customerAuthService.resetPassword("test@gmail.com", "newPassword");
+
+        assertEquals("Password reset successfully", response.getMessage());
+        verify(customerRepository).save(testCustomer);
     }
 
     @Test
