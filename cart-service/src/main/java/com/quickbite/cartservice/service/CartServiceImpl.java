@@ -54,7 +54,9 @@ public class CartServiceImpl implements CartService {
         if (cart.getRestaurantId() == null) {
             cart.setRestaurantId(restaurantId);
         } else if (!Objects.equals(cart.getRestaurantId(), restaurantId)) {
-            throw new BadRequestException("Cart already contains items from another restaurant. Clear the cart to continue.");
+            cart.getItems().clear();
+            cart.setRestaurantId(restaurantId);
+            cart.setTotalPrice(0.0);
         }
 
         CartItem existingItem = cart.getItems().stream()
