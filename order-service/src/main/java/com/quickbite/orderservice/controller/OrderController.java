@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping({"/orders", "/api/v1/orders"})
 @RequiredArgsConstructor
-public class OrderResource {
+public class OrderController {
 
     private final OrderService orderService;
 

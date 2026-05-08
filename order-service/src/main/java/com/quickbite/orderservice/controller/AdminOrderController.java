@@ -12,11 +12,11 @@ import com.quickbite.orderservice.service.OrderService;
 
 @RestController
 @RequestMapping("/api/v1/admin/orders")
-public class AdminOrderResource {
+public class AdminOrderController {
 
     private final OrderService orderService;
 
-    public AdminOrderResource(OrderService orderService) {
+    public AdminOrderController(OrderService orderService) {
         this.orderService = orderService;
     }
 

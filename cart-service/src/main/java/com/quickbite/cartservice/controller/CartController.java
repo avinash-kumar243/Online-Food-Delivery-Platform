@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping({"/cart", "/api/v1/cart"})
 @RequiredArgsConstructor
-public class CartResource {
+public class CartController {
 
     private final CartService cartService;
 
