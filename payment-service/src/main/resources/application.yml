@@ -10,7 +10,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     open-in-view: false
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -25,6 +25,9 @@ spring:
       simple:
         acknowledge-mode: manual
         default-requeue-rejected: false
+        concurrency: ${RABBITMQ_LISTENER_CONCURRENCY:2}
+        max-concurrency: ${RABBITMQ_LISTENER_MAX_CONCURRENCY:6}
+        prefetch: ${RABBITMQ_LISTENER_PREFETCH:25}
 
 eureka:
   client:
