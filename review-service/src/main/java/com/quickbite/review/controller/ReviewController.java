@@ -37,6 +37,11 @@ public class ReviewController {
         return reviewService.createDeliveryReview(request);
     }
 
+    @GetMapping("/{reviewId}")
+    public ReviewResponse getReviewById(@PathVariable Long reviewId) {
+        return reviewService.getReviewById(reviewId);
+    }
+
     @GetMapping("/restaurants/{restaurantId}")
     public List<ReviewResponse> getRestaurantReviews(@PathVariable Long restaurantId) {
         return reviewService.getReviewsByRestaurantId(restaurantId);
