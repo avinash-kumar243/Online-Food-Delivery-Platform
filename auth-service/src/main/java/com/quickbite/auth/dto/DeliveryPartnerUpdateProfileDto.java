@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class DeliveryPartnerUpdateProfileDto {
 
+	private String fullName;
+	private String phone;
 	private String vehicleType;
 	private String vehicleNumber;
 	private String profilePicUrl;
