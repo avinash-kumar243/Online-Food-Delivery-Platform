@@ -7,7 +7,7 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -25,6 +25,9 @@ spring:
       simple:
         acknowledge-mode: manual
         default-requeue-rejected: false
+        concurrency: ${RABBITMQ_LISTENER_CONCURRENCY:3}
+        max-concurrency: ${RABBITMQ_LISTENER_MAX_CONCURRENCY:8}
+        prefetch: ${RABBITMQ_LISTENER_PREFETCH:40}
       direct:
         default-requeue-rejected: false
   mail:
