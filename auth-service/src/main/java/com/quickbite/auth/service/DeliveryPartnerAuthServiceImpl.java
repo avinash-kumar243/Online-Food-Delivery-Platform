@@ -136,6 +136,12 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 		DeliveryPartner partner = deliveryPartnerRepository.findByPartnerId(partnerId)
 				.orElseThrow(() -> new AccountNotFoundException("Delivery partner not found with id: " + partnerId));
 		
+		if(updateDto.getFullName() != null) {
+			partner.setFullName(updateDto.getFullName());
+		}
+		if(updateDto.getPhone() != null) {
+			partner.setPhone(updateDto.getPhone());
+		}
 		if(updateDto.getVehicleType() != null) {
 			partner.setVehicleType(updateDto.getVehicleType());
 		}
