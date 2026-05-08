@@ -35,4 +35,6 @@ public interface RestaurantService {
     RestaurantResponse updateAverageRating(Long restaurantId, double avgRating);
 
     void deleteRestaurant(Long restaurantId);
+
+    void deleteRestaurantsByOwnerId(Long ownerId);
 }
