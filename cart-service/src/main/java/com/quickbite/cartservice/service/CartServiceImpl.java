@@ -244,15 +244,13 @@ public class CartServiceImpl implements CartService {
     }
 
     private double resolvePrice(AddCartItemRequest request, MenuItemSnapshotDto menuItem) {
-        if (request.price() != null && request.price() > 0) {
-            return request.price();
-        }
-
-        return menuItem.price();
+        return resolveSnapshotPrice(menuItem);
     }
 
     private double resolveSnapshotPrice(MenuItemSnapshotDto menuItem) {
-        return menuItem.price();
+        return menuItem.discountedPrice() != null && menuItem.discountedPrice() > 0
+            ? menuItem.discountedPrice()
+            : menuItem.price();
     }
 
     private String resolveName(AddCartItemRequest request, MenuItemSnapshotDto menuItem) {
