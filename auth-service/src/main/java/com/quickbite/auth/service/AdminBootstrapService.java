@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import com.quickbite.auth.entity.AdminUser;
 import com.quickbite.auth.enums.UserStatus;
@@ -28,12 +29,16 @@ public class AdminBootstrapService implements CommandLineRunner {
     @Value("${quickbite.admin.bootstrap.email:admin@quickbite.local}")
     private String adminEmail;
 
-    @Value("${quickbite.admin.bootstrap.password:Admin@12345}")
+    @Value("${quickbite.admin.bootstrap.password:}")
     private String adminPassword;
 
     @Override
     public void run(String... args) {
         if (!bootstrapEnabled || adminUserRepository.existsByEmail(adminEmail)) {
+            return;
+        }
+
+        if (!StringUtils.hasText(adminPassword)) {
             return;
         }
 
