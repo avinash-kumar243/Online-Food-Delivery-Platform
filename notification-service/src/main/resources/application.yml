@@ -64,7 +64,7 @@ management:
       show-details: always
 
 springdoc:
-  packages-to-scan: com.quickbite.notification.resource
+  packages-to-scan: com.quickbite.notification.controller
   swagger-ui:
     path: /swagger-ui/index.html
 
