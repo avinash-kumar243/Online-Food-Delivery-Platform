@@ -192,8 +192,9 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderStatus(status);
         Order savedOrder = orderRepository.save(order);
 
-        if (status == OrderStatus.DELIVERED) {
-            eventPublisher.send("order.delivered", toOrderEvent(savedOrder));
+        String routingKey = routingKeyForStatus(status);
+        if (routingKey != null) {
+            eventPublisher.send(routingKey, toOrderEvent(savedOrder));
         }
         realtimeNotifier.publishOrderUpdated(savedOrder);
 
@@ -245,6 +246,7 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setOrderStatus(OrderStatus.CANCELLED);
         Order savedOrder = orderRepository.save(order);
+        eventPublisher.send("order.cancelled", toOrderEvent(savedOrder));
         realtimeNotifier.publishOrderUpdated(savedOrder);
         return toResponse(savedOrder);
     }
@@ -437,6 +439,18 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return true;
+    }
+
+    private String routingKeyForStatus(OrderStatus status) {
+        return switch (status) {
+            case CONFIRMED -> "restaurant.accepted";
+            case PREPARING -> "order.preparing";
+            case READY_FOR_PICKUP -> "order.ready_for_pickup";
+            case PICKED_UP -> "order.pickedup";
+            case OUT_FOR_DELIVERY -> "order.out_for_delivery";
+            case DELIVERED -> "order.delivered";
+            default -> null;
+        };
     }
 
     private void ensureRestaurantAcceptingOrders(Long restaurantId) {
