@@ -4,7 +4,8 @@ import lombok.Data;
 
 @Data
 public class NotificationEvent {
-    private Integer recipientId;
+    private Long recipientId;
+    private String recipientRole;
     private String type;
     private String channel;
     private String title;
