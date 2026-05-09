@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -50,7 +48,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public List<Notification> sendBulk(BulkNotificationRequest request) {
         List<Notification> notifications = new ArrayList<>();
-        for (Integer recipientId : request.getRecipientIds()) {
+        for (Long recipientId : request.getRecipientIds()) {
             NotificationRequest perRecipient = cloneForRecipient(request.getNotification(), recipientId);
             notifications.add(send(perRecipient));
         }
@@ -100,50 +98,52 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public Notification markAsRead(int notificationId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification not found for notificationId " + notificationId));
+    public Notification markAsRead(int notificationId, Long recipientId, String recipientRole) {
+        Notification notification = notificationRepository
+            .findByNotificationIdAndRecipientIdAndRecipientRole(notificationId, recipientId, recipientRole)
+            .orElseThrow(() -> new ResourceNotFoundException("Notification not found for notificationId " + notificationId));
         notification.setRead(true);
+        notification.setReadAt(LocalDateTime.now());
         return notificationRepository.save(notification);
     }
 
     @Override
-    public List<Notification> markAllRead(int recipientId) {
-        List<Notification> notifications = notificationRepository.findByRecipientIdAndIsRead(recipientId, false);
-        notifications.forEach(notification -> notification.setRead(true));
+    public List<Notification> markAllRead(Long recipientId, String recipientRole) {
+        List<Notification> notifications = notificationRepository
+            .findByRecipientIdAndRecipientRoleAndIsReadOrderBySentAtDesc(recipientId, recipientRole, false);
+        LocalDateTime readAt = LocalDateTime.now();
+        notifications.forEach(notification -> {
+            notification.setRead(true);
+            notification.setReadAt(readAt);
+        });
         return notificationRepository.saveAll(notifications);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public long getUnreadCount(int recipientId) {
-        return notificationRepository.countByRecipientIdAndIsRead(recipientId, false);
+    public long getUnreadCount(Long recipientId, String recipientRole) {
+        return notificationRepository.countByRecipientIdAndRecipientRoleAndIsRead(recipientId, recipientRole, false);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Notification> getNotificationsByRecipientId(int recipientId) {
-        return notificationRepository.findByRecipientId(recipientId);
+    public List<Notification> getNotificationsByRecipientId(Long recipientId, String recipientRole) {
+        return notificationRepository.findByRecipientIdAndRecipientRoleOrderBySentAtDesc(recipientId, recipientRole);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<Notification> getAllNotifications() {
-        return notificationRepository.findAll();
-    }
-
-    @Override
-    public void deleteNotification(int notificationId) {
-        if (!notificationRepository.existsById(notificationId)) {
-            throw new ResourceNotFoundException("Notification not found for notificationId " + notificationId);
-        }
-        notificationRepository.deleteByNotificationId(notificationId);
+    public void deleteNotification(int notificationId, Long recipientId, String recipientRole) {
+        Notification notification = notificationRepository
+            .findByNotificationIdAndRecipientIdAndRecipientRole(notificationId, recipientId, recipientRole)
+            .orElseThrow(() -> new ResourceNotFoundException("Notification not found for notificationId " + notificationId));
+        notificationRepository.delete(notification);
     }
 
     @Override
     public Notification processEvent(NotificationEvent event) {
         NotificationRequest request = new NotificationRequest();
         request.setRecipientId(event.getRecipientId());
+        request.setRecipientRole(event.getRecipientRole());
         request.setType(event.getType());
         request.setChannel(event.getChannel());
         request.setTitle(event.getTitle());
@@ -154,9 +154,10 @@ public class NotificationServiceImpl implements NotificationService {
         return send(request);
     }
 
-    private NotificationRequest cloneForRecipient(NotificationRequest source, Integer recipientId) {
+    private NotificationRequest cloneForRecipient(NotificationRequest source, Long recipientId) {
         NotificationRequest request = new NotificationRequest();
         request.setRecipientId(recipientId);
+        request.setRecipientRole(source.getRecipientRole());
         request.setType(source.getType());
         request.setChannel(source.getChannel());
         request.setTitle(source.getTitle());
@@ -170,6 +171,7 @@ public class NotificationServiceImpl implements NotificationService {
     private Notification buildNotification(NotificationRequest request) {
         return Notification.builder()
                 .recipientId(request.getRecipientId())
+                .recipientRole(request.getRecipientRole())
                 .type(request.getType())
                 .channel(request.getChannel())
                 .title(request.getTitle())
