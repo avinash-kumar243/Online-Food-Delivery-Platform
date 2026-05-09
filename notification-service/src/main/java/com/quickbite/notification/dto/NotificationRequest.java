@@ -10,10 +10,16 @@ import lombok.Data;
 public class NotificationRequest {
 
     @Min(value = 1, message = "recipientId must be greater than 0")
-    private Integer recipientId;
+    private Long recipientId;
+
+    @Pattern(
+        regexp = "CUSTOMER|RESTAURANT_OWNER|DELIVERY_PARTNER|ADMIN",
+        message = "recipientRole must be CUSTOMER, RESTAURANT_OWNER, DELIVERY_PARTNER, or ADMIN"
+    )
+    private String recipientRole;
 
     @NotBlank(message = "type is required")
-    @Pattern(regexp = "ORDER|PAYMENT|PROMO|DELIVERY", message = "type must be ORDER, PAYMENT, PROMO, or DELIVERY")
+    @Pattern(regexp = "[A-Z_]+", message = "type must contain uppercase letters and underscores only")
     private String type;
 
     @NotBlank(message = "channel is required")
