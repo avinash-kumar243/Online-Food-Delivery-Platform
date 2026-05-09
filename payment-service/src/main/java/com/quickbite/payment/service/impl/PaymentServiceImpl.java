@@ -110,7 +110,8 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (!validSignature) {
             payment.setStatus(PaymentStatus.FAILED);
-            paymentRepository.save(payment);
+            Payment savedPayment = paymentRepository.save(payment);
+            publishPaymentEvent(savedPayment, "payment.failed");
             throw new PaymentException("Invalid Razorpay payment signature");
         }
 
@@ -122,7 +123,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaidAt(LocalDateTime.now());
 
         Payment savedPayment = paymentRepository.save(payment);
-        publishPaymentSuccess(savedPayment);
+        publishPaymentEvent(savedPayment, "payment.success");
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -259,7 +260,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setPaidAt(LocalDateTime.now());
         }
         Payment savedPayment = paymentRepository.save(payment);
-        publishPaymentSuccess(savedPayment);
+        publishPaymentEvent(savedPayment, "payment.success");
     }
 
     private void handlePaymentFailed(JsonNode root) {
@@ -273,7 +274,8 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         payment.setStatus(PaymentStatus.FAILED);
-        paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        publishPaymentEvent(savedPayment, "payment.failed");
     }
 
     private void handleRefundProcessed(JsonNode root) {
@@ -290,9 +292,9 @@ public class PaymentServiceImpl implements PaymentService {
         });
     }
 
-    private void publishPaymentSuccess(Payment payment) {
+    private void publishPaymentEvent(Payment payment, String routingKey) {
         OrderSnapshotDto order = orderServiceClient.getOrderById(payment.getOrderId());
-        eventPublisher.send("payment.success", new PaymentEventDTO(
+        eventPublisher.send(routingKey, new PaymentEventDTO(
             payment.getOrderId(),
             order.customerId(),
             order.restaurantId(),
