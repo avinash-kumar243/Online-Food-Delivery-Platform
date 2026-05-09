@@ -20,17 +20,15 @@ public interface NotificationService {
 
     void sendSMS(Notification notification);
 
-    Notification markAsRead(int notificationId);
+    Notification markAsRead(int notificationId, Long recipientId, String recipientRole);
 
-    List<Notification> markAllRead(int recipientId);
+    List<Notification> markAllRead(Long recipientId, String recipientRole);
 
-    long getUnreadCount(int recipientId);
+    long getUnreadCount(Long recipientId, String recipientRole);
 
-    List<Notification> getNotificationsByRecipientId(int recipientId);
+    List<Notification> getNotificationsByRecipientId(Long recipientId, String recipientRole);
 
-    List<Notification> getAllNotifications();
-
-    void deleteNotification(int notificationId);
+    void deleteNotification(int notificationId, Long recipientId, String recipientRole);
 
     Notification processEvent(NotificationEvent event);
 
