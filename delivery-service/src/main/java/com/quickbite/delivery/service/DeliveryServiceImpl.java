@@ -25,7 +25,6 @@ import com.quickbite.delivery.exception.ConflictException;
 import com.quickbite.delivery.exception.ResourceNotFoundException;
 import com.quickbite.delivery.messaging.GenericEventPublisher;
 import com.quickbite.delivery.messaging.dto.DeliveryEventDTO;
-import com.quickbite.delivery.messaging.dto.OrderEventDTO;
 import com.quickbite.delivery.repository.DeliveryRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -253,14 +252,6 @@ public class DeliveryServiceImpl implements DeliveryService {
 		agent.setAvailable(true);
 		agent.setTotalDeliveries(agent.getTotalDeliveries() + 1);
 		DeliveryAgent savedAgent = deliveryRepository.save(agent);
-		eventPublisher.send("order.delivered", new OrderEventDTO(
-			completedOrderId,
-			null,
-			null,
-			null,
-			null,
-			java.time.LocalDateTime.now()
-		));
 		return toResponse(savedAgent);
 	}
 
