@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,30 +24,43 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/notifications")
+@RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
 
     private final NotificationService notificationService;
 
-    @GetMapping("/recipient/{recipientId}")
-    public List<Notification> getNotificationsByRecipient(@PathVariable int recipientId) {
-        return notificationService.getNotificationsByRecipientId(recipientId);
+    @GetMapping
+    public List<Notification> getNotificationsForCurrentUser(
+        @RequestHeader("X-User-Id") Long userId,
+        @RequestHeader("X-User-Role") String userRole
+    ) {
+        return notificationService.getNotificationsByRecipientId(userId, normalizeRole(userRole));
     }
 
-    @GetMapping("/unread-count/{recipientId}")
-    public long getUnreadCount(@PathVariable int recipientId) {
-        return notificationService.getUnreadCount(recipientId);
+    @GetMapping("/unread-count")
+    public long getUnreadCount(
+        @RequestHeader("X-User-Id") Long userId,
+        @RequestHeader("X-User-Role") String userRole
+    ) {
+        return notificationService.getUnreadCount(userId, normalizeRole(userRole));
     }
 
-    @PatchMapping("/read/{notificationId}")
-    public Notification markAsRead(@PathVariable int notificationId) {
-        return notificationService.markAsRead(notificationId);
+    @PatchMapping("/{notificationId}/read")
+    public Notification markAsRead(
+        @PathVariable int notificationId,
+        @RequestHeader("X-User-Id") Long userId,
+        @RequestHeader("X-User-Role") String userRole
+    ) {
+        return notificationService.markAsRead(notificationId, userId, normalizeRole(userRole));
     }
 
-    @PatchMapping("/read-all/{recipientId}")
-    public List<Notification> markAllRead(@PathVariable int recipientId) {
-        return notificationService.markAllRead(recipientId);
+    @PatchMapping("/read-all")
+    public List<Notification> markAllRead(
+        @RequestHeader("X-User-Id") Long userId,
+        @RequestHeader("X-User-Role") String userRole
+    ) {
+        return notificationService.markAllRead(userId, normalizeRole(userRole));
     }
 
     @PostMapping("/bulk")
@@ -69,12 +83,15 @@ public class NotificationController {
 
     @DeleteMapping("/{notificationId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteNotification(@PathVariable int notificationId) {
-        notificationService.deleteNotification(notificationId);
+    public void deleteNotification(
+        @PathVariable int notificationId,
+        @RequestHeader("X-User-Id") Long userId,
+        @RequestHeader("X-User-Role") String userRole
+    ) {
+        notificationService.deleteNotification(notificationId, userId, normalizeRole(userRole));
     }
 
-    @GetMapping("/all")
-    public List<Notification> getAllNotifications() {
-        return notificationService.getAllNotifications();
+    private String normalizeRole(String userRole) {
+        return userRole == null ? "" : userRole.trim().toUpperCase();
     }
 }
