@@ -8,13 +8,21 @@ import com.quickbite.notification.entity.Notification;
 
 public interface NotificationRepository extends JpaRepository<Notification, Integer> {
 
-    List<Notification> findByRecipientId(int recipientId);
+    List<Notification> findByRecipientIdAndRecipientRoleOrderBySentAtDesc(Long recipientId, String recipientRole);
 
-    List<Notification> findByRecipientIdAndIsRead(int recipientId, boolean isRead);
+    List<Notification> findByRecipientIdAndRecipientRoleAndIsReadOrderBySentAtDesc(
+        Long recipientId,
+        String recipientRole,
+        boolean isRead
+    );
 
-    long countByRecipientIdAndIsRead(int recipientId, boolean isRead);
+    long countByRecipientIdAndRecipientRoleAndIsRead(Long recipientId, String recipientRole, boolean isRead);
 
-    List<Notification> findByType(String type);
+    java.util.Optional<Notification> findByNotificationIdAndRecipientIdAndRecipientRole(
+        Integer notificationId,
+        Long recipientId,
+        String recipientRole
+    );
 
     void deleteByNotificationId(int notificationId);
 }
