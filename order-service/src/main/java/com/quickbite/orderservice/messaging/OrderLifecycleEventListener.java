@@ -36,9 +36,6 @@ public class OrderLifecycleEventListener {
         try {
             orderRepository.findById(event.orderId()).ifPresent(order -> {
                 order.setPaymentStatus(normalizeStatus(event.status(), "PAID"));
-                if (order.getOrderStatus() == OrderStatus.PLACED) {
-                    order.setOrderStatus(OrderStatus.CONFIRMED);
-                }
                 Order savedOrder = orderRepository.save(order);
                 realtimeNotifier.publishPaymentUpdated(savedOrder, event);
             });
@@ -56,12 +53,6 @@ public class OrderLifecycleEventListener {
     )
     public void handleRestaurantAccepted(OrderEventDTO event, Message message, Channel channel) throws IOException {
         try {
-            orderRepository.findById(event.orderId()).ifPresent(order -> {
-                if (order.getOrderStatus().ordinal() < OrderStatus.PREPARING.ordinal()) {
-                    order.setOrderStatus(OrderStatus.PREPARING);
-                    realtimeNotifier.publishOrderUpdated(orderRepository.save(order));
-                }
-            });
             ack(channel, message);
         } catch (Exception exception) {
             reject(channel, message);
@@ -78,9 +69,6 @@ public class OrderLifecycleEventListener {
         try {
             orderRepository.findById(event.orderId()).ifPresent(order -> {
                 order.setDeliveryAgentId(event.agentId());
-                if (order.getOrderStatus() != OrderStatus.DELIVERED && order.getOrderStatus() != OrderStatus.CANCELLED) {
-                    order.setOrderStatus(OrderStatus.READY_FOR_PICKUP);
-                }
                 realtimeNotifier.publishOrderUpdated(orderRepository.save(order));
             });
             ack(channel, message);
