@@ -138,6 +138,13 @@ spring:
               filters:
                 - AuthenticationFilter
 
+            - id: notification-service
+              uri: lb://NOTIFICATION-SERVICE
+              predicates:
+                - Path=/api/v1/notifications/**
+              filters:
+                - AuthenticationFilter
+
 jwt:
   secret: ${JWT_SECRET:local-dev-secret-key-local-dev-secret-key}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
