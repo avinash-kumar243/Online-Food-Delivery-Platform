@@ -1,25 +1,18 @@
 package com.quickbite.restaurant.messaging;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 
+import com.quickbite.restaurant.messaging.dto.OrderEventDTO;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import com.quickbite.restaurant.messaging.dto.DeliveryEventDTO;
-import com.quickbite.restaurant.messaging.dto.OrderEventDTO;
 import com.quickbite.restaurant.messaging.dto.PaymentEventDTO;
 import com.rabbitmq.client.Channel;
 
 @Component
 public class RestaurantLifecycleEventListener {
-
-    private final GenericEventPublisher eventPublisher;
-
-    public RestaurantLifecycleEventListener(GenericEventPublisher eventPublisher) {
-        this.eventPublisher = eventPublisher;
-    }
 
     @RabbitListener(
         queues = QuickbiteOrderMessagingConstants.ORDER_CREATED_QUEUE,
@@ -35,14 +28,6 @@ public class RestaurantLifecycleEventListener {
     )
     public void handlePaymentSuccess(PaymentEventDTO event, Message message, Channel channel) throws IOException {
         try {
-            eventPublisher.send("restaurant.accepted", new OrderEventDTO(
-                event.orderId(),
-                event.customerId(),
-                event.restaurantId(),
-                event.deliveryAgentId(),
-                event.amount(),
-                LocalDateTime.now()
-            ));
             ack(channel, message);
         } catch (Exception exception) {
             reject(channel, message);
