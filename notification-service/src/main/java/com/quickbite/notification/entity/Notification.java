@@ -9,7 +9,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -32,16 +31,22 @@ public class Notification {
     private Integer notificationId;
 
     @Min(value = 1, message = "recipientId must be greater than 0")
-    @Max(value = Integer.MAX_VALUE, message = "recipientId is invalid")
     @Column(nullable = false)
-    private Integer recipientId;
+    private Long recipientId;
+
+    @Pattern(
+        regexp = "CUSTOMER|RESTAURANT_OWNER|DELIVERY_PARTNER|ADMIN",
+        message = "recipientRole must be CUSTOMER, RESTAURANT_OWNER, DELIVERY_PARTNER, or ADMIN"
+    )
+    @Column(length = 32)
+    private String recipientRole;
 
     @Column(nullable = false)
     private LocalDateTime sentAt;
 
     @NotBlank(message = "type is required")
-    @Pattern(regexp = "ORDER|PAYMENT|PROMO|DELIVERY", message = "type must be ORDER, PAYMENT, PROMO, or DELIVERY")
-    @Column(nullable = false, length = 20)
+    @Pattern(regexp = "[A-Z_]+", message = "type must contain uppercase letters and underscores only")
+    @Column(nullable = false, length = 64)
     private String type;
 
     @NotBlank(message = "channel is required")
@@ -69,6 +74,8 @@ public class Notification {
 
     @Column(nullable = false)
     private boolean isRead;
+
+    private LocalDateTime readAt;
 
     @PrePersist
     public void prePersist() {
