@@ -31,6 +31,11 @@ public class JwtFilter extends OncePerRequestFilter {  // JWTFilter = It ask JWT
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 		String path = request.getServletPath();
 
+		if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+			filterChain.doFilter(request, response);
+			return;
+		}
+
 		if(path.startsWith("/auth/")
 		        || path.startsWith("/oauth2/")
 		        || path.startsWith("/login/")
