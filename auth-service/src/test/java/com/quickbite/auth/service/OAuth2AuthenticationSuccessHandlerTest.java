@@ -17,7 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.quickbite.auth.config.AppRoleAwareOAuth2AuthorizationRequestResolver;
+import com.quickbite.auth.config.OAuth2RequestContext;
 import com.quickbite.auth.entity.Customer;
 import com.quickbite.auth.entity.DeliveryPartner;
 import com.quickbite.auth.entity.RestaurantOwner;
@@ -225,7 +225,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
     private void mockSessionRole(String role) {
         when(request.getSession(false)).thenReturn(session);
-        when(session.getAttribute(AppRoleAwareOAuth2AuthorizationRequestResolver.APP_ROLE_SESSION_ATTRIBUTE))
+        when(session.getAttribute(OAuth2RequestContext.APP_ROLE_SESSION_ATTRIBUTE))
                 .thenReturn(role);
     }
 
