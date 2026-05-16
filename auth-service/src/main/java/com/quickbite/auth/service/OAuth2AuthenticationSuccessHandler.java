@@ -15,7 +15,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.quickbite.auth.config.AppRoleAwareOAuth2AuthorizationRequestResolver;
+import com.quickbite.auth.config.OAuth2RequestContext;
 import com.quickbite.auth.entity.Customer;
 import com.quickbite.auth.entity.DeliveryPartner;
 import com.quickbite.auth.entity.RestaurantOwner;
@@ -27,14 +27,13 @@ import com.quickbite.auth.repository.RestaurantOwnerRepository;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
-    @Value("${frontend-url:http://localhost:4200}")
+    @Value("${frontend-url:https://main.d38xhvu2bosgry.amplifyapp.com}")
     private String frontendUrl;
 
     private final CustomerRepository customerRepository;
@@ -57,17 +56,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         String name = (String) attributes.get("name");
         String picture = (String) attributes.get("picture");
 
-        HttpSession session = request.getSession(false);
-        String appRole = null;
-        if (session != null) {
-            Object storedAppRole = session.getAttribute(
-                AppRoleAwareOAuth2AuthorizationRequestResolver.APP_ROLE_SESSION_ATTRIBUTE
-            );
-            if (storedAppRole instanceof String storedRole) {
-                appRole = storedRole;
-            }
-            session.removeAttribute(AppRoleAwareOAuth2AuthorizationRequestResolver.APP_ROLE_SESSION_ATTRIBUTE);
-        }
+        String appRole = OAuth2RequestContext.resolveAppRole(request);
+        OAuth2RequestContext.clearAppRole(request);
 
         if (!StringUtils.hasText(appRole)) {
             appRole = request.getParameter("appRole");
@@ -76,7 +66,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         if (!StringUtils.hasText(appRole)) {
             appRole = "CUSTOMER";
         } else {
-            appRole = appRole.trim().toUpperCase(Locale.ROOT);
+            appRole = OAuth2RequestContext.normalizeRole(appRole);
         }
 
         String token;
