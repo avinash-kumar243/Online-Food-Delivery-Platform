@@ -1,0 +1,72 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/orderdb}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  application:
+    name: order-service
+  profiles:
+    default: dev
+  jpa:
+    hibernate: 
+      ddl-auto: update
+    properties: 
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        default-requeue-rejected: false
+        concurrency: ${RABBITMQ_LISTENER_CONCURRENCY:2}
+        max-concurrency: ${RABBITMQ_LISTENER_MAX_CONCURRENCY:6}
+        prefetch: ${RABBITMQ_LISTENER_PREFETCH:25}
+
+eureka:
+  client:
+    enabled: true
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+frontend-url: ${FRONTEND_URL:http://localhost:4200}
+
+jwt:
+  secret: ${JWT_SECRET:local-dev-secret-key-local-dev-secret-key}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+quickbite:
+  integrations:
+    cart-service:
+      base-url: ${CART_SERVICE_URL:http://cart-service:8084}
+    payment-service:
+      base-url: ${PAYMENT_SERVICE_URL:http://payment-service:8086}

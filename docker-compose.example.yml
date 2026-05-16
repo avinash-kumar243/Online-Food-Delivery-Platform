@@ -1,0 +1,361 @@
+version: '3.9'
+
+services:
+
+  # =====================================================
+  # MYSQL
+  # =====================================================
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # RABBITMQ
+  # =====================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # EUREKA SERVER
+  # =====================================================
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    restart: always
+    ports:
+      - "8761:8761"
+    environment:
+      PORT: 8761
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # ADMIN SERVER
+  # =====================================================
+  admin-server:
+    build: ./admin-server
+    container_name: admin-server
+    restart: always
+    depends_on:
+      - eureka-server
+    ports:
+      - "9090:9090"
+    environment:
+      PORT: 9090
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # API GATEWAY
+  # =====================================================
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    restart: always
+    depends_on:
+      - eureka-server
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # AUTH SERVICE
+  # =====================================================
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    restart: always
+    depends_on:
+      - mysql
+      - rabbitmq
+      - eureka-server
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${AUTH_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI}
+      FRONTEND_URL: ${FRONTEND_URL}
+      EUREKA_URL: ${EUREKA_URL}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # RESTAURANT SERVICE
+  # =====================================================
+  restaurant-service:
+    build: ./restaurant-service
+    container_name: restaurant-service
+    restart: always
+    depends_on:
+      - mysql
+      - rabbitmq
+      - eureka-server
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${RESTAURANT_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      FRONTEND_URL: ${FRONTEND_URL}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # MENU SERVICE
+  # =====================================================
+  menu-service:
+    build: ./menu-service
+    container_name: menu-service
+    restart: always
+    depends_on:
+      - mysql
+      - eureka-server
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${MENU_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # CART SERVICE
+  # =====================================================
+  cart-service:
+    build: ./cart-service
+    container_name: cart-service
+    restart: always
+    depends_on:
+      - mysql
+      - eureka-server
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${CART_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      FRONTEND_URL: ${FRONTEND_URL}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # ORDER SERVICE
+  # =====================================================
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    restart: always
+    depends_on:
+      - mysql
+      - rabbitmq
+      - eureka-server
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${ORDER_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      FRONTEND_URL: ${FRONTEND_URL}
+      CART_SERVICE_URL: ${CART_SERVICE_URL}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # PAYMENT SERVICE
+  # =====================================================
+  payment-service:
+    build: ./payment-service
+    container_name: payment-service
+    restart: always
+    depends_on:
+      - mysql
+      - rabbitmq
+      - eureka-server
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${PAYMENT_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ORDER_SERVICE_BASE_URL: ${ORDER_SERVICE_BASE_URL}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # DELIVERY SERVICE
+  # =====================================================
+  delivery-service:
+    build: ./delivery-service
+    container_name: delivery-service
+    restart: always
+    depends_on:
+      - mysql
+      - rabbitmq
+      - eureka-server
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${DELIVERY_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # NOTIFICATION SERVICE
+  # =====================================================
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    restart: always
+    depends_on:
+      - mysql
+      - rabbitmq
+      - eureka-server
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${NOTIFICATION_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMS_PROVIDER: ${SMS_PROVIDER}
+      SMS_GATEWAY_ENDPOINT: ${SMS_GATEWAY_ENDPOINT}
+      SMS_GATEWAY_API_KEY: ${SMS_GATEWAY_API_KEY}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+  # =====================================================
+  # REVIEW SERVICE
+  # =====================================================
+  review-service:
+    build: ./review-service
+    container_name: review-service
+    restart: always
+    depends_on:
+      - mysql
+      - rabbitmq
+      - eureka-server
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_URL: ${REVIEW_DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - quickbite-network
+
+
+# =====================================================
+# NETWORKS
+# =====================================================
+networks:
+  quickbite-network:
+
+
+# =====================================================
+# VOLUMES
+# =====================================================
+volumes:
+  mysql-data:

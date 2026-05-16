@@ -1,0 +1,172 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              '[/**]':
+                allowedOrigins:
+                  - ${CLIENT_URL}
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
+                maxAge: 3600
+          routes:
+            - id: auth-service
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/auth/**
+
+            - id: auth-service-admin
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/v1/admin/users/**
+              filters:
+                - AuthenticationFilter
+
+            - id: auth-service-internal
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/v1/internal/users/**
+              filters:
+                - AuthenticationFilter
+
+            - id: auth-service-oauth2
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/oauth2/**
+
+            - id: auth-service-login
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/login/**
+
+            - id: restaurant-service
+              uri: lb://RESTAURANT-SERVICE
+              predicates:
+                - Path=/api/v1/restaurants/**
+              filters:
+                - AuthenticationFilter
+
+            - id: restaurant-service-admin
+              uri: lb://RESTAURANT-SERVICE
+              predicates:
+                - Path=/api/v1/admin/restaurants/**
+              filters:
+                - AuthenticationFilter
+
+            - id: menu-service
+              uri: lb://MENU-SERVICE
+              predicates:
+                - Path=/api/v1/menu/**
+              filters:
+                - AuthenticationFilter
+
+            - id: cart-service
+              uri: lb://CART-SERVICE
+              predicates:
+                - Path=/api/v1/cart/**
+              filters:
+                - AuthenticationFilter
+
+            - id: order-service
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/api/v1/orders/**
+              filters:
+                - AuthenticationFilter
+
+            - id: order-service-websocket
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/ws/orders/**
+
+            - id: order-service-admin
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/api/v1/admin/orders/**
+              filters:
+                - AuthenticationFilter
+
+            - id: payment-service
+              uri: lb://PAYMENT-SERVICE
+              predicates:
+                - Path=/api/v1/payments/**
+              filters:
+                - AuthenticationFilter
+
+            - id: payment-service-admin
+              uri: lb://PAYMENT-SERVICE
+              predicates:
+                - Path=/api/v1/admin/payments/**
+              filters:
+                - AuthenticationFilter
+
+            - id: delivery-service
+              uri: lb://DELIVERY-SERVICE
+              predicates:
+                - Path=/api/v1/agents/**
+              filters:
+                - AuthenticationFilter
+
+            - id: delivery-service-admin
+              uri: lb://DELIVERY-SERVICE
+              predicates:
+                - Path=/api/v1/admin/agents/**
+              filters:
+                - AuthenticationFilter
+
+            - id: review-service
+              uri: lb://REVIEW-SERVICE
+              predicates:
+                - Path=/api/v1/reviews/**
+              filters:
+                - AuthenticationFilter
+
+            - id: notification-service
+              uri: lb://NOTIFICATION-SERVICE
+              predicates:
+                - Path=/api/v1/notifications/**
+              filters:
+                - AuthenticationFilter
+
+jwt:
+  secret: ${JWT_SECRET:local-dev-secret-key-local-dev-secret-key}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    hostname: api-gateway
+    peer-node-read-timeout-ms: 30000
+    # ip-address will be auto‑resolved by Docker DNS
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      access: unrestricted
