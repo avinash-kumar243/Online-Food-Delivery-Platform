@@ -2,6 +2,9 @@ package com.quickbite.auth.service;
 
 import java.util.List;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,14 +17,17 @@ import com.quickbite.auth.entity.DeliveryPartner;
 import com.quickbite.auth.entity.RestaurantOwner;
 import com.quickbite.auth.enums.UserRole;
 import com.quickbite.auth.enums.UserStatus;
+import com.quickbite.auth.exception.IllegalOperationException;
 import com.quickbite.auth.repository.AdminUserRepository;
 import com.quickbite.auth.repository.CustomerRepository;
 import com.quickbite.auth.repository.DeliveryPartnerRepository;
 import com.quickbite.auth.repository.RestaurantOwnerRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class UserAdministrationService {
 
@@ -74,37 +80,44 @@ public class UserAdministrationService {
 
     @Transactional
     public void suspendUser(UserRole role, Long userId) {
+        AdminUser actingAdmin = getAuthenticatedAdmin();
+        assertAdminCanModifyTarget(role, userId, actingAdmin);
         switch (role) {
-            case CUSTOMER -> updateCustomerStatus(userId, UserStatus.SUSPENDED);
-            case RESTAURANT_OWNER -> updateRestaurantOwnerStatus(userId, UserStatus.SUSPENDED);
-            case DELIVERY_PARTNER -> updateDeliveryPartnerStatus(userId, UserStatus.SUSPENDED);
-            case ADMIN -> updateAdminStatus(userId, UserStatus.SUSPENDED);
+            case CUSTOMER -> updateCustomerStatus(userId, UserStatus.SUSPENDED, actingAdmin.getAdminId());
+            case RESTAURANT_OWNER -> updateRestaurantOwnerStatus(userId, UserStatus.SUSPENDED, actingAdmin.getAdminId());
+            case DELIVERY_PARTNER -> updateDeliveryPartnerStatus(userId, UserStatus.SUSPENDED, actingAdmin.getAdminId());
+            case ADMIN -> updateAdminStatus(userId, UserStatus.SUSPENDED, actingAdmin.getAdminId());
         }
     }
 
     @Transactional
     public void reactivateUser(UserRole role, Long userId) {
+        AdminUser actingAdmin = getAuthenticatedAdmin();
+        assertAdminCanModifyTarget(role, userId, actingAdmin);
         switch (role) {
-            case CUSTOMER -> updateCustomerStatus(userId, UserStatus.ACTIVE);
-            case RESTAURANT_OWNER -> updateRestaurantOwnerStatus(userId, UserStatus.ACTIVE);
-            case DELIVERY_PARTNER -> updateDeliveryPartnerStatus(userId, UserStatus.ACTIVE);
-            case ADMIN -> updateAdminStatus(userId, UserStatus.ACTIVE);
+            case CUSTOMER -> updateCustomerStatus(userId, UserStatus.ACTIVE, actingAdmin.getAdminId());
+            case RESTAURANT_OWNER -> updateRestaurantOwnerStatus(userId, UserStatus.ACTIVE, actingAdmin.getAdminId());
+            case DELIVERY_PARTNER -> updateDeliveryPartnerStatus(userId, UserStatus.ACTIVE, actingAdmin.getAdminId());
+            case ADMIN -> updateAdminStatus(userId, UserStatus.ACTIVE, actingAdmin.getAdminId());
         }
     }
 
     @Transactional
     public void deleteUser(UserRole role, Long userId) {
+        AdminUser actingAdmin = getAuthenticatedAdmin();
+        assertAdminCanModifyTarget(role, userId, actingAdmin);
         switch (role) {
-            case CUSTOMER -> deleteCustomer(userId);
-            case RESTAURANT_OWNER -> deleteRestaurantOwner(userId);
-            case DELIVERY_PARTNER -> deleteDeliveryPartner(userId);
-            case ADMIN -> deleteAdmin(userId);
+            case CUSTOMER -> deleteCustomer(userId, actingAdmin.getAdminId());
+            case RESTAURANT_OWNER -> deleteRestaurantOwner(userId, actingAdmin.getAdminId());
+            case DELIVERY_PARTNER -> deleteDeliveryPartner(userId, actingAdmin.getAdminId());
+            case ADMIN -> deleteAdmin(userId, actingAdmin.getAdminId());
         }
     }
 
-    private void deleteCustomer(Long userId) {
+    private void deleteCustomer(Long userId, Long adminId) {
         Customer customer = customerRepository.findByCustomerId(userId)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
+        log.info("Admin {} deleted customer {}", adminId, customer.getCustomerId());
         emailService.sendUserDeletedEmail(
             customer.getCustomerId(),
             customer.getFullName(),
@@ -114,10 +127,11 @@ public class UserAdministrationService {
         customerRepository.delete(customer);
     }
 
-    private void deleteRestaurantOwner(Long userId) {
+    private void deleteRestaurantOwner(Long userId, Long adminId) {
         RestaurantOwner owner = restaurantOwnerRepository.findByOwnerId(userId)
                 .orElseThrow(() -> new RuntimeException("Restaurant owner not found"));
         restaurantServiceClient.deleteRestaurantsByOwnerId(owner.getOwnerId());
+        log.info("Admin {} deleted restaurant owner {}", adminId, owner.getOwnerId());
         emailService.sendUserDeletedEmail(
             owner.getOwnerId(),
             owner.getFullName(),
@@ -127,9 +141,10 @@ public class UserAdministrationService {
         restaurantOwnerRepository.delete(owner);
     }
 
-    private void deleteDeliveryPartner(Long userId) {
+    private void deleteDeliveryPartner(Long userId, Long adminId) {
         DeliveryPartner partner = deliveryPartnerRepository.findByPartnerId(userId)
                 .orElseThrow(() -> new RuntimeException("Delivery partner not found"));
+        log.info("Admin {} deleted delivery partner {}", adminId, partner.getPartnerId());
         emailService.sendUserDeletedEmail(
             partner.getPartnerId(),
             partner.getFullName(),
@@ -139,9 +154,10 @@ public class UserAdministrationService {
         deliveryPartnerRepository.delete(partner);
     }
 
-    private void deleteAdmin(Long userId) {
+    private void deleteAdmin(Long userId, Long adminId) {
         AdminUser admin = adminUserRepository.findByAdminId(userId)
                 .orElseThrow(() -> new RuntimeException("Admin not found"));
+        log.info("Admin {} deleted admin {}", adminId, admin.getAdminId());
         emailService.sendUserDeletedEmail(
             admin.getAdminId(),
             admin.getFullName(),
@@ -151,12 +167,13 @@ public class UserAdministrationService {
         adminUserRepository.delete(admin);
     }
 
-    private void updateCustomerStatus(Long userId, UserStatus status) {
+    private void updateCustomerStatus(Long userId, UserStatus status, Long adminId) {
         Customer customer = customerRepository.findByCustomerId(userId)
             .orElseThrow(() -> new RuntimeException("Customer not found"));
         customer.setStatus(status);
         customer.setIsActive(status == UserStatus.ACTIVE);
         customerRepository.save(customer);
+        log.info("Admin {} changed customer {} status to {}", adminId, customer.getCustomerId(), status);
         if (status == UserStatus.SUSPENDED) {
             emailService.sendUserSuspendedEmail(
                 customer.getCustomerId(),
@@ -174,12 +191,13 @@ public class UserAdministrationService {
         }
     }
 
-    private void updateRestaurantOwnerStatus(Long userId, UserStatus status) {
+    private void updateRestaurantOwnerStatus(Long userId, UserStatus status, Long adminId) {
         RestaurantOwner owner = restaurantOwnerRepository.findByOwnerId(userId)
             .orElseThrow(() -> new RuntimeException("Restaurant owner not found"));
         owner.setStatus(status);
         owner.setIsActive(status == UserStatus.ACTIVE);
         restaurantOwnerRepository.save(owner);
+        log.info("Admin {} changed restaurant owner {} status to {}", adminId, owner.getOwnerId(), status);
         if (status == UserStatus.SUSPENDED) {
             emailService.sendUserSuspendedEmail(
                 owner.getOwnerId(),
@@ -197,12 +215,13 @@ public class UserAdministrationService {
         }
     }
 
-    private void updateDeliveryPartnerStatus(Long userId, UserStatus status) {
+    private void updateDeliveryPartnerStatus(Long userId, UserStatus status, Long adminId) {
         DeliveryPartner partner = deliveryPartnerRepository.findByPartnerId(userId)
             .orElseThrow(() -> new RuntimeException("Delivery partner not found"));
         partner.setStatus(status);
         partner.setIsActive(status == UserStatus.ACTIVE);
         deliveryPartnerRepository.save(partner);
+        log.info("Admin {} changed delivery partner {} status to {}", adminId, partner.getPartnerId(), status);
         if (status == UserStatus.SUSPENDED) {
             emailService.sendUserSuspendedEmail(
                 partner.getPartnerId(),
@@ -220,12 +239,13 @@ public class UserAdministrationService {
         }
     }
 
-    private void updateAdminStatus(Long userId, UserStatus status) {
+    private void updateAdminStatus(Long userId, UserStatus status, Long adminId) {
         AdminUser admin = adminUserRepository.findByAdminId(userId)
             .orElseThrow(() -> new RuntimeException("Admin not found"));
         admin.setStatus(status);
         admin.setIsActive(status == UserStatus.ACTIVE);
         adminUserRepository.save(admin);
+        log.info("Admin {} changed admin {} status to {}", adminId, admin.getAdminId(), status);
         if (status == UserStatus.SUSPENDED) {
             emailService.sendUserSuspendedEmail(
                 admin.getAdminId(),
@@ -241,6 +261,33 @@ public class UserAdministrationService {
                 UserRole.ADMIN.name()
             );
         }
+    }
+
+    private void assertAdminCanModifyTarget(UserRole role, Long userId, AdminUser actingAdmin) {
+        if (role != UserRole.ADMIN) {
+            return;
+        }
+
+        AdminUser targetAdmin = adminUserRepository.findByAdminId(userId)
+            .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+        if (actingAdmin.getAdminId().equals(targetAdmin.getAdminId())) {
+            log.warn("Admin attempted self-account modification. adminId={}", actingAdmin.getAdminId());
+            throw new IllegalOperationException("You cannot modify your own admin account");
+        }
+    }
+
+    private AdminUser getAuthenticatedAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null
+            || !authentication.isAuthenticated()
+            || authentication instanceof AnonymousAuthenticationToken) {
+            throw new RuntimeException("Authenticated admin not found");
+        }
+
+        String email = authentication.getName();
+        return adminUserRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("Authenticated admin not found"));
     }
 
     private PlatformUserDto toCustomerDto(Customer customer) {
