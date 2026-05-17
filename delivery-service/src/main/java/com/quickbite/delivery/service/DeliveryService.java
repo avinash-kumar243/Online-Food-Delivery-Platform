@@ -42,4 +42,6 @@ public interface DeliveryService {
 	DeliveryAgentResponse completeDelivery(Long agentId);
 
 	List<DeliveryAgentResponse> getActiveAgents();
+
+	DeliveryAgentResponse updateAverageRating(Long agentId, double avgRating);
 }
