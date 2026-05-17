@@ -40,5 +40,19 @@ public class NotificationRequest {
     @Size(max = 100, message = "relatedType must not exceed 100 characters")
     private String relatedType;
 
+    @Size(max = 40, message = "orderId must not exceed 40 characters")
+    private String orderId;
+
+    @Size(max = 40, message = "deliveryId must not exceed 40 characters")
+    private String deliveryId;
+
+    private Integer rating;
+
+    @Size(max = 160, message = "actorName must not exceed 160 characters")
+    private String actorName;
+
+    @Size(max = 2000, message = "reviewText must not exceed 2000 characters")
+    private String reviewText;
+
     private boolean isRead;
 }
