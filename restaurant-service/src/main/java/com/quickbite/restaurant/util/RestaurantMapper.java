@@ -84,6 +84,7 @@ public class RestaurantMapper {
             restaurant.getAddress(),
             restaurant.getCity(),
             restaurant.getPhone(),
+            restaurant.getAvgRating(),
             restaurant.getIsOpen(),
             restaurant.getIsApproved(),
             restaurant.getApprovalStatus().name(),
