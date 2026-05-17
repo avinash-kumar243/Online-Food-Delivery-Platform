@@ -12,9 +12,15 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
     # properties: 
     #   hibernate:
     #     dialect: org.hibernate.dialect.MySQL8Dialect
+  jackson:
+    time-zone: UTC
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
