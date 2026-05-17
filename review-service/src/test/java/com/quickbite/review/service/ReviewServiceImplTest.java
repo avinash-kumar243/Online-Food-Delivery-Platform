@@ -4,9 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -122,8 +120,7 @@ class ReviewServiceImplTest {
             return review;
         });
         when(reviewRepository.findAverageFoodRatingByRestaurantId(30L)).thenReturn(5.0d);
-        when(restaurantClient.updateAverageRating(eq(30L), any(RestaurantRatingRequestDto.class)))
-            .thenThrow(feignException());
+        doThrow(feignException()).when(restaurantClient).updateAverageRating(eq(30L), any(RestaurantRatingRequestDto.class));
 
         var response = reviewService.createFoodReview(request);
 
