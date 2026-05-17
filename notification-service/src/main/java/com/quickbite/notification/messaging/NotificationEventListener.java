@@ -56,231 +56,162 @@ public class NotificationEventListener {
 
     private List<NotificationPayload> buildNotifications(String routingKey, Map<String, Object> payload) {
         Map<String, NotificationPayload> notifications = new LinkedHashMap<>();
-        String referenceId = stringValue(payload.get("orderId"));
+        String orderId = stringValue(payload.get("orderId"));
+        String deliveryId = resolveDeliveryId(payload);
 
         switch (routingKey) {
             case "order.created" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_PLACED",
-                    "Order Placed",
-                    "Your order has been placed successfully and sent to the restaurant.",
-                    referenceId
-                );
-                addRestaurantOwnerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_PLACED",
-                    "New Order Received",
-                    "A new order has been placed for your restaurant. Please review and accept the order.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "ORDER_PLACED",
-                    "New Order Placed",
-                    "A new customer order has been placed on the platform.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "ORDER_PLACED", "Order Placed",
+                    "Your order has been placed successfully and sent to the restaurant.", orderId, deliveryId);
+                addRestaurantOwnerNotification(notifications, payload, "ORDER_PLACED", "New Order Received",
+                    "A new order has been placed for your restaurant. Please review and accept the order.", orderId, deliveryId);
+                addAdminNotifications(notifications, "ORDER_PLACED", "New Order Placed",
+                    "A new customer order has been placed on the platform.", orderId, deliveryId);
             }
             case "payment.success" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "PAYMENT_SUCCESS",
-                    "Payment Successful",
-                    "Your payment was completed successfully. Your order has been placed and sent to the restaurant.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "PAYMENT_SUCCESS",
-                    "Payment Successful",
-                    "A customer payment was completed successfully.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "PAYMENT_SUCCESS", "Payment Successful",
+                    "Your payment was completed successfully. Your order has been placed and sent to the restaurant.", orderId, deliveryId);
+                addAdminNotifications(notifications, "PAYMENT_SUCCESS", "Payment Successful",
+                    "A customer payment was completed successfully.", orderId, deliveryId);
             }
             case "payment.failed" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "PAYMENT_FAILED",
-                    "Payment Failed",
-                    "Your payment could not be completed. Please try again to place the order.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "PAYMENT_FAILED",
-                    "Payment Failed",
-                    "A customer payment failed and may need attention.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "PAYMENT_FAILED", "Payment Failed",
+                    "Your payment could not be completed. Please try again to place the order.", orderId, deliveryId);
+                addAdminNotifications(notifications, "PAYMENT_FAILED", "Payment Failed",
+                    "A customer payment failed and may need attention.", orderId, deliveryId);
             }
             case "restaurant.accepted" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_ACCEPTED",
-                    "Order Accepted",
-                    "Your order has been accepted by the restaurant and will be prepared soon.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "ORDER_ACCEPTED",
-                    "Restaurant Accepted Order",
-                    "A restaurant has accepted a customer order.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "ORDER_ACCEPTED", "Order Accepted",
+                    "Your order has been accepted by the restaurant and will be prepared soon.", orderId, deliveryId);
+                addAdminNotifications(notifications, "ORDER_ACCEPTED", "Restaurant Accepted Order",
+                    "A restaurant has accepted a customer order.", orderId, deliveryId);
             }
             case "order.preparing" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_PREPARING",
-                    "Order Preparing",
-                    "Your food is being prepared by the restaurant.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "ORDER_PREPARING",
-                    "Order Preparing",
-                    "A restaurant has started preparing an order.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "ORDER_PREPARING", "Order Preparing",
+                    "Your food is being prepared by the restaurant.", orderId, deliveryId);
+                addAdminNotifications(notifications, "ORDER_PREPARING", "Order Preparing",
+                    "A restaurant has started preparing an order.", orderId, deliveryId);
             }
             case "order.ready_for_pickup" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_READY_FOR_PICKUP",
-                    "Order Ready for Pickup",
-                    "Your order is ready and waiting for a delivery partner.",
-                    referenceId
-                );
-                addAvailableDeliveryPartnerNotifications(
-                    notifications,
-                    "ORDER_READY_FOR_PICKUP",
-                    "Order Ready for Pickup",
-                    "A new order is ready for pickup. Accept it to start delivery.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "ORDER_READY_FOR_PICKUP",
-                    "Order Ready for Pickup",
-                    "An order is ready for pickup and waiting for delivery assignment.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "ORDER_READY_FOR_PICKUP", "Order Ready for Pickup",
+                    "Your order is ready and waiting for a delivery partner.", orderId, deliveryId);
+                addAvailableDeliveryPartnerNotifications(notifications, "ORDER_READY_FOR_PICKUP", "Order Ready for Pickup",
+                    "A new order is ready for pickup. Accept it to start delivery.", orderId, deliveryId);
+                addAdminNotifications(notifications, "ORDER_READY_FOR_PICKUP", "Order Ready for Pickup",
+                    "An order is ready for pickup and waiting for delivery assignment.", orderId, deliveryId);
             }
             case "delivery.assigned" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "DELIVERY_PARTNER_ASSIGNED",
-                    "Delivery Partner Assigned",
-                    "A delivery partner has accepted your order and will pick it up soon.",
-                    referenceId
-                );
-                addRestaurantOwnerNotification(
-                    notifications,
-                    payload,
-                    "DELIVERY_PARTNER_ASSIGNED",
-                    "Delivery Partner Assigned",
-                    "A delivery partner has accepted the order and will arrive for pickup.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "DELIVERY_PARTNER_ASSIGNED",
-                    "Order Assigned",
-                    "A delivery partner has accepted an order for delivery.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "DELIVERY_PARTNER_ASSIGNED", "Delivery Partner Assigned",
+                    "A delivery partner has accepted your order and will pick it up soon.", orderId, deliveryId);
+                addRestaurantOwnerNotification(notifications, payload, "DELIVERY_PARTNER_ASSIGNED", "Delivery Partner Assigned",
+                    "A delivery partner has accepted the order and will arrive for pickup.", orderId, deliveryId);
+                addAdminNotifications(notifications, "DELIVERY_PARTNER_ASSIGNED", "Order Assigned",
+                    "A delivery partner has accepted an order for delivery.", orderId, deliveryId);
             }
             case "order.out_for_delivery" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "OUT_FOR_DELIVERY",
-                    "Out for Delivery",
-                    "Your order has been picked up and is on the way.",
-                    referenceId
-                );
-                addRestaurantOwnerNotification(
-                    notifications,
-                    payload,
-                    "OUT_FOR_DELIVERY",
-                    "Order Picked Up",
-                    "The delivery partner has picked up the order and is out for delivery.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "OUT_FOR_DELIVERY",
-                    "Order Out for Delivery",
-                    "An order has been picked up and is now out for delivery.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "OUT_FOR_DELIVERY", "Out for Delivery",
+                    "Your order has been picked up and is on the way.", orderId, deliveryId);
+                addRestaurantOwnerNotification(notifications, payload, "OUT_FOR_DELIVERY", "Order Picked Up",
+                    "The delivery partner has picked up the order and is out for delivery.", orderId, deliveryId);
+                addAdminNotifications(notifications, "OUT_FOR_DELIVERY", "Order Out for Delivery",
+                    "An order has been picked up and is now out for delivery.", orderId, deliveryId);
             }
             case "order.delivered" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_DELIVERED",
-                    "Order Delivered",
-                    "Your order has been delivered successfully. Enjoy your meal!",
-                    referenceId
-                );
-                addRestaurantOwnerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_DELIVERED",
-                    "Order Delivered",
-                    "The order from your restaurant has been delivered successfully.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "ORDER_DELIVERED",
-                    "Order Completed",
-                    "An order has been successfully delivered.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "ORDER_DELIVERED", "Order Delivered",
+                    "Your order has been delivered successfully. Enjoy your meal!", orderId, deliveryId);
+                addRestaurantOwnerNotification(notifications, payload, "ORDER_DELIVERED", "Order Delivered",
+                    "The order from your restaurant has been delivered successfully.", orderId, deliveryId);
+                addAdminNotifications(notifications, "ORDER_DELIVERED", "Order Completed",
+                    "An order has been successfully delivered.", orderId, deliveryId);
             }
             case "order.cancelled" -> {
-                addCustomerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_CANCELLED",
-                    "Order Cancelled",
-                    "Your order has been cancelled.",
-                    referenceId
-                );
-                addRestaurantOwnerNotification(
-                    notifications,
-                    payload,
-                    "ORDER_CANCELLED",
-                    "Order Cancelled",
-                    "A restaurant order has been cancelled.",
-                    referenceId
-                );
-                addAdminNotifications(
-                    notifications,
-                    "ORDER_CANCELLED",
-                    "Order Cancelled",
-                    "An order has been cancelled on the platform.",
-                    referenceId
-                );
+                addCustomerNotification(notifications, payload, "ORDER_CANCELLED", "Order Cancelled",
+                    "Your order has been cancelled.", orderId, deliveryId);
+                addRestaurantOwnerNotification(notifications, payload, "ORDER_CANCELLED", "Order Cancelled",
+                    "A restaurant order has been cancelled.", orderId, deliveryId);
+                addAdminNotifications(notifications, "ORDER_CANCELLED", "Order Cancelled",
+                    "An order has been cancelled on the platform.", orderId, deliveryId);
             }
+            case "review.food_submitted" -> addRestaurantReviewNotification(notifications, payload, orderId);
+            case "review.delivery_submitted" -> addDeliveryReviewNotification(notifications, payload, orderId, deliveryId);
             default -> {
             }
         }
 
         return List.copyOf(notifications.values());
+    }
+
+    private void addRestaurantReviewNotification(Map<String, NotificationPayload> notifications, Map<String, Object> payload, String orderId) {
+        Long restaurantId = longValue(payload.get("restaurantId"));
+        if (restaurantId == null) {
+            return;
+        }
+
+        RestaurantResponseDto restaurant = safeGetRestaurant(restaurantId);
+        if (restaurant == null || restaurant.ownerId() == null) {
+            return;
+        }
+
+        InternalUserSummaryDto customer = safeGetUser(ROLE_CUSTOMER, longValue(payload.get("customerId")));
+        String customerName = customer != null && customer.fullName() != null ? customer.fullName() : "A customer";
+        Integer rating = intValue(payload.get("rating"));
+        String reviewText = normalizeText(stringValue(payload.get("comment")));
+
+        putNotification(
+            notifications,
+            restaurant.ownerId(),
+            ROLE_OWNER,
+            "RESTAURANT_REVIEW_RECEIVED",
+            "New Restaurant Review",
+            reviewMessage(customerName, rating, reviewText, "restaurant"),
+            orderId,
+            null,
+            rating,
+            customerName,
+            reviewText,
+            "REVIEW"
+        );
+    }
+
+    private void addDeliveryReviewNotification(Map<String, NotificationPayload> notifications, Map<String, Object> payload, String orderId, String deliveryId) {
+        String resolvedDeliveryId = deliveryId != null ? deliveryId : stringValue(payload.get("agentId"));
+        Long agentId = longValue(payload.get("agentId"));
+        if (agentId == null) {
+            return;
+        }
+
+        DeliveryAgentResponseDto deliveryAgent = safeGetDeliveryAgent(agentId);
+        if (deliveryAgent == null || deliveryAgent.userId() == null) {
+            return;
+        }
+
+        InternalUserSummaryDto customer = safeGetUser(ROLE_CUSTOMER, longValue(payload.get("customerId")));
+        String customerName = customer != null && customer.fullName() != null ? customer.fullName() : "A customer";
+        Integer rating = intValue(payload.get("rating"));
+        String reviewText = normalizeText(stringValue(payload.get("comment")));
+
+        putNotification(
+            notifications,
+            deliveryAgent.userId(),
+            ROLE_PARTNER,
+            "DELIVERY_REVIEW_RECEIVED",
+            "New Delivery Review",
+            reviewMessage(customerName, rating, reviewText, "delivery"),
+            orderId,
+            resolvedDeliveryId,
+            rating,
+            customerName,
+            reviewText,
+            "REVIEW"
+        );
+    }
+
+    private String reviewMessage(String customerName, Integer rating, String reviewText, String target) {
+        String ratingPart = rating == null ? "shared feedback" : "rated your " + target + " " + rating + "/5";
+        if (reviewText == null) {
+            return customerName + " " + ratingPart + ".";
+        }
+        return customerName + " " + ratingPart + ": \"" + reviewText + "\"";
     }
 
     private void addCustomerNotification(
@@ -289,11 +220,12 @@ public class NotificationEventListener {
         String type,
         String title,
         String message,
-        String referenceId
+        String orderId,
+        String deliveryId
     ) {
         Long customerId = longValue(payload.get("customerId"));
         if (customerId != null) {
-            putNotification(notifications, customerId, ROLE_CUSTOMER, type, title, message, referenceId);
+            putNotification(notifications, customerId, ROLE_CUSTOMER, type, title, message, orderId, deliveryId, null, null, null, "ORDER");
         }
     }
 
@@ -303,20 +235,17 @@ public class NotificationEventListener {
         String type,
         String title,
         String message,
-        String referenceId
+        String orderId,
+        String deliveryId
     ) {
         Long restaurantId = longValue(payload.get("restaurantId"));
         if (restaurantId == null) {
             return;
         }
 
-        try {
-            RestaurantResponseDto restaurant = restaurantServiceClient.getRestaurantById(restaurantId);
-            if (restaurant != null && restaurant.ownerId() != null) {
-                putNotification(notifications, restaurant.ownerId(), ROLE_OWNER, type, title, message, referenceId);
-            }
-        } catch (RuntimeException ignored) {
-            // Notification fan-out should not stop the whole event if a downstream lookup fails.
+        RestaurantResponseDto restaurant = safeGetRestaurant(restaurantId);
+        if (restaurant != null && restaurant.ownerId() != null) {
+            putNotification(notifications, restaurant.ownerId(), ROLE_OWNER, type, title, message, orderId, deliveryId, null, null, null, "ORDER");
         }
     }
 
@@ -325,12 +254,13 @@ public class NotificationEventListener {
         String type,
         String title,
         String message,
-        String referenceId
+        String orderId,
+        String deliveryId
     ) {
         try {
             for (DeliveryAgentResponseDto agent : deliveryServiceClient.getAvailableAgents()) {
                 if (agent != null && agent.userId() != null) {
-                    putNotification(notifications, agent.userId(), ROLE_PARTNER, type, title, message, referenceId);
+                    putNotification(notifications, agent.userId(), ROLE_PARTNER, type, title, message, orderId, deliveryId, null, null, null, "ORDER");
                 }
             }
         } catch (RuntimeException ignored) {
@@ -343,12 +273,13 @@ public class NotificationEventListener {
         String type,
         String title,
         String message,
-        String referenceId
+        String orderId,
+        String deliveryId
     ) {
         try {
             for (InternalUserSummaryDto admin : authServiceClient.getUsersByRole(ROLE_ADMIN)) {
                 if (admin != null && admin.userId() != null && Boolean.TRUE.equals(admin.isActive())) {
-                    putNotification(notifications, admin.userId(), ROLE_ADMIN, type, title, message, referenceId);
+                    putNotification(notifications, admin.userId(), ROLE_ADMIN, type, title, message, orderId, deliveryId, null, null, null, "ORDER");
                 }
             }
         } catch (RuntimeException ignored) {
@@ -363,18 +294,55 @@ public class NotificationEventListener {
         String type,
         String title,
         String message,
-        String referenceId
+        String orderId,
+        String deliveryId,
+        Integer rating,
+        String actorName,
+        String reviewText,
+        String relatedType
     ) {
-        String key = recipientRole + ":" + recipientId + ":" + type + ":" + referenceId;
+        String key = recipientRole + ":" + recipientId + ":" + type + ":" + orderId + ":" + deliveryId;
         notifications.putIfAbsent(key, new NotificationPayload(
             recipientId,
             recipientRole,
             type,
             title,
             message,
-            referenceId,
-            "ORDER"
+            orderId,
+            relatedType,
+            orderId,
+            deliveryId,
+            rating,
+            actorName,
+            reviewText
         ));
+    }
+
+    private RestaurantResponseDto safeGetRestaurant(Long restaurantId) {
+        try {
+            return restaurantServiceClient.getRestaurantById(restaurantId);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private DeliveryAgentResponseDto safeGetDeliveryAgent(Long agentId) {
+        try {
+            return deliveryServiceClient.getAgentById(agentId);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private InternalUserSummaryDto safeGetUser(String role, Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        try {
+            return authServiceClient.getUserSummary(role, userId);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private Long longValue(Object value) {
@@ -391,8 +359,38 @@ public class NotificationEventListener {
         return null;
     }
 
+    private Integer intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Integer.parseInt(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private String resolveDeliveryId(Map<String, Object> payload) {
+        String deliveryId = stringValue(payload.get("deliveryAgentId"));
+        if (deliveryId != null) {
+            return deliveryId;
+        }
+        return stringValue(payload.get("agentId"));
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private record NotificationPayload(
@@ -402,7 +400,12 @@ public class NotificationEventListener {
         String title,
         String message,
         String relatedId,
-        String relatedType
+        String relatedType,
+        String orderId,
+        String deliveryId,
+        Integer rating,
+        String actorName,
+        String reviewText
     ) {
         private NotificationEvent toEvent() {
             NotificationEvent event = new NotificationEvent();
@@ -414,6 +417,11 @@ public class NotificationEventListener {
             event.setMessage(message);
             event.setRelatedId(relatedId);
             event.setRelatedType(relatedType);
+            event.setOrderId(orderId);
+            event.setDeliveryId(deliveryId);
+            event.setRating(rating);
+            event.setActorName(actorName);
+            event.setReviewText(reviewText);
             return event;
         }
     }
