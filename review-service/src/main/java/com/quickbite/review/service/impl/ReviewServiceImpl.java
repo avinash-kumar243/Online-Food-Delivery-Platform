@@ -2,6 +2,7 @@ package com.quickbite.review.service.impl;
 
 import java.util.List;
 
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +23,10 @@ import com.quickbite.review.service.ReviewAuthorizationValidator;
 import com.quickbite.review.service.ReviewService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional
 public class ReviewServiceImpl implements ReviewService {
@@ -107,6 +110,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private ReviewResponse createReview(ReviewSubmissionRequest request, ReviewType reviewType) {
+        log.info("Processing {} review for orderId={} customerId={}", reviewType, request.orderId(), request.customerId());
         ReviewEligibility eligibility = reviewAuthorizationValidator.validateDeliveredOrder(request.orderId(), request.customerId());
         String normalizedComment = normalizeComment(request.comment());
 
@@ -127,38 +131,56 @@ public class ReviewServiceImpl implements ReviewService {
                 .verified(false)
                 .build());
 
-        review = reviewRepository.save(review);
-        syncAverageRatings(review);
-        publishReviewNotification(review);
+        try {
+            review = reviewRepository.save(review);
+        } catch (DataAccessException ex) {
+            log.error("Failed to persist {} review for orderId={} customerId={}", reviewType, request.orderId(), request.customerId(), ex);
+            throw ex;
+        }
+
+        log.info("Review created successfully. reviewId={} orderId={} type={} rating={}", review.getReviewId(), review.getOrderId(), review.getReviewType(), review.getRating());
+        syncAverageRatingsSafely(review);
+        publishReviewNotificationSafely(review);
 
         return toResponse(review);
     }
 
-    private void syncAverageRatings(Review review) {
-        if (review.getReviewType() == ReviewType.FOOD) {
-            double averageRating = getAverageFoodRating(review.getRestaurantId());
-            restaurantClient.updateAverageRating(review.getRestaurantId(), new RestaurantRatingRequestDto(averageRating));
-            return;
-        }
+    private void syncAverageRatingsSafely(Review review) {
+        try {
+            if (review.getReviewType() == ReviewType.FOOD) {
+                double averageRating = getAverageFoodRating(review.getRestaurantId());
+                restaurantClient.updateAverageRating(review.getRestaurantId(), new RestaurantRatingRequestDto(averageRating));
+                log.info("Synchronized restaurant rating. restaurantId={} average={}", review.getRestaurantId(), averageRating);
+                return;
+            }
 
-        double averageRating = getAverageDeliveryRating(review.getAgentId());
-        deliveryClient.updateAverageRating(review.getAgentId(), new DeliveryRatingRequestDto(averageRating));
+            double averageRating = getAverageDeliveryRating(review.getAgentId());
+            deliveryClient.updateAverageRating(review.getAgentId(), new DeliveryRatingRequestDto(averageRating));
+            log.info("Synchronized delivery rating. agentId={} average={}", review.getAgentId(), averageRating);
+        } catch (RuntimeException ex) {
+            log.error("Rating synchronization failed for reviewId={} type={}", review.getReviewId(), review.getReviewType(), ex);
+        }
     }
 
-    private void publishReviewNotification(Review review) {
+    private void publishReviewNotificationSafely(Review review) {
         String routingKey = review.getReviewType() == ReviewType.FOOD
             ? "review.food_submitted"
             : "review.delivery_submitted";
-        eventPublisher.send(routingKey, new ReviewNotificationEventDTO(
-            review.getReviewId(),
-            review.getOrderId(),
-            review.getCustomerId(),
-            review.getRestaurantId(),
-            review.getAgentId(),
-            review.getReviewType().name(),
-            review.getRating(),
-            review.getComment()
-        ));
+        try {
+            eventPublisher.send(routingKey, new ReviewNotificationEventDTO(
+                review.getReviewId(),
+                review.getOrderId(),
+                review.getCustomerId(),
+                review.getRestaurantId(),
+                review.getAgentId(),
+                review.getReviewType().name(),
+                review.getRating(),
+                review.getComment()
+            ));
+            log.info("Published review notification. reviewId={} routingKey={}", review.getReviewId(), routingKey);
+        } catch (RuntimeException ex) {
+            log.error("Failed to publish review notification for reviewId={} routingKey={}", review.getReviewId(), routingKey, ex);
+        }
     }
 
     private Review updateExistingReview(Review review, ReviewEligibility eligibility, int rating, String comment) {
