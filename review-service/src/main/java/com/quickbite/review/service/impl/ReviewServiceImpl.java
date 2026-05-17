@@ -5,12 +5,18 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.quickbite.review.client.DeliveryClient;
+import com.quickbite.review.client.RestaurantClient;
+import com.quickbite.review.client.dto.DeliveryRatingRequestDto;
+import com.quickbite.review.client.dto.RestaurantRatingRequestDto;
 import com.quickbite.review.dto.ReviewResponse;
 import com.quickbite.review.dto.ReviewSubmissionRequest;
 import com.quickbite.review.entity.Review;
 import com.quickbite.review.entity.ReviewEligibility;
 import com.quickbite.review.enums.ReviewType;
 import com.quickbite.review.exception.ReviewNotFoundException;
+import com.quickbite.review.messaging.GenericEventPublisher;
+import com.quickbite.review.messaging.dto.ReviewNotificationEventDTO;
 import com.quickbite.review.repository.ReviewRepository;
 import com.quickbite.review.service.ReviewAuthorizationValidator;
 import com.quickbite.review.service.ReviewService;
@@ -24,6 +30,9 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ReviewAuthorizationValidator reviewAuthorizationValidator;
+    private final RestaurantClient restaurantClient;
+    private final DeliveryClient deliveryClient;
+    private final GenericEventPublisher eventPublisher;
 
     @Override
     public ReviewResponse createFoodReview(ReviewSubmissionRequest request) {
@@ -119,8 +128,37 @@ public class ReviewServiceImpl implements ReviewService {
                 .build());
 
         review = reviewRepository.save(review);
+        syncAverageRatings(review);
+        publishReviewNotification(review);
 
         return toResponse(review);
+    }
+
+    private void syncAverageRatings(Review review) {
+        if (review.getReviewType() == ReviewType.FOOD) {
+            double averageRating = getAverageFoodRating(review.getRestaurantId());
+            restaurantClient.updateAverageRating(review.getRestaurantId(), new RestaurantRatingRequestDto(averageRating));
+            return;
+        }
+
+        double averageRating = getAverageDeliveryRating(review.getAgentId());
+        deliveryClient.updateAverageRating(review.getAgentId(), new DeliveryRatingRequestDto(averageRating));
+    }
+
+    private void publishReviewNotification(Review review) {
+        String routingKey = review.getReviewType() == ReviewType.FOOD
+            ? "review.food_submitted"
+            : "review.delivery_submitted";
+        eventPublisher.send(routingKey, new ReviewNotificationEventDTO(
+            review.getReviewId(),
+            review.getOrderId(),
+            review.getCustomerId(),
+            review.getRestaurantId(),
+            review.getAgentId(),
+            review.getReviewType().name(),
+            review.getRating(),
+            review.getComment()
+        ));
     }
 
     private Review updateExistingReview(Review review, ReviewEligibility eligibility, int rating, String comment) {
