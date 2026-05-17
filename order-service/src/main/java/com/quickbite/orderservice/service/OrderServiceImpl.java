@@ -3,10 +3,12 @@ package com.quickbite.orderservice.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -15,11 +17,15 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.quickbite.orderservice.client.DeliveryAgentClient;
 import com.quickbite.orderservice.dto.OrderItemResponse;
+import com.quickbite.orderservice.dto.OrderDeliveryPartnerInfo;
+import com.quickbite.orderservice.dto.OrderRestaurantInfo;
 import com.quickbite.orderservice.dto.OrderResponse;
 import com.quickbite.orderservice.dto.PlaceOrderItemRequest;
 import com.quickbite.orderservice.dto.PlaceOrderRequest;
 import com.quickbite.orderservice.client.RestaurantClient;
+import com.quickbite.orderservice.client.dto.DeliveryAgentRealtimeDto;
 import com.quickbite.orderservice.client.dto.RestaurantRealtimeDto;
 import com.quickbite.orderservice.entity.Order;
 import com.quickbite.orderservice.entity.OrderItem;
@@ -54,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
     private final GenericEventPublisher eventPublisher;
     private final RealtimeNotifier realtimeNotifier;
     private final RestaurantClient restaurantClient;
+    private final DeliveryAgentClient deliveryAgentClient;
 
     @Override
     @Transactional
@@ -110,64 +117,55 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(Long orderId) {
-        return toResponse(fetchOrder(orderId));
+        Order order = fetchOrder(orderId);
+        return toResponse(
+            order,
+            fetchRestaurants(Set.of(order.getRestaurantId())),
+            fetchDeliveryAgents(order.getDeliveryAgentId() == null ? Set.of() : Set.of(order.getDeliveryAgentId()))
+        );
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByCustomerId(Long customerId) {
-        return orderRepository.findByCustomerId(customerId).stream()
-            .sorted(orderDateDesc())
-            .map(this::toResponse)
-            .toList();
+        return toResponses(orderRepository.findByCustomerId(customerId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByRestaurantId(Long restaurantId) {
-        return orderRepository.findByRestaurantId(restaurantId).stream()
-            .sorted(orderDateDesc())
-            .map(this::toResponse)
-            .toList();
+        return toResponses(orderRepository.findByRestaurantId(restaurantId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByDeliveryAgentId(Long deliveryAgentId) {
-        return orderRepository.findByDeliveryAgentId(deliveryAgentId).stream()
-            .sorted(orderDateDesc())
-            .map(this::toResponse)
-            .toList();
+        return toResponses(orderRepository.findByDeliveryAgentId(deliveryAgentId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getActiveOrders() {
-        return orderRepository.findAll().stream()
+        return toResponses(orderRepository.findAll().stream()
             .filter(order -> ACTIVE_STATUSES.contains(order.getOrderStatus()))
             .sorted(orderDateDesc())
-            .map(this::toResponse)
-            .toList();
+            .toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getAvailableOrders() {
-        return orderRepository.findAll().stream()
+        return toResponses(orderRepository.findAll().stream()
             .filter(order -> order.getOrderStatus() == OrderStatus.READY_FOR_PICKUP)
             .filter(order -> order.getDeliveryAgentId() == null)
             .sorted(orderDateDesc())
-            .map(this::toResponse)
-            .toList();
+            .toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAll().stream()
-            .sorted(orderDateDesc())
-            .map(this::toResponse)
-            .toList();
+        return toResponses(orderRepository.findAll());
     }
 
     @Override
@@ -310,7 +308,38 @@ public class OrderServiceImpl implements OrderService {
             .build();
     }
 
+    private List<OrderResponse> toResponses(List<Order> orders) {
+        List<Order> sortedOrders = orders.stream()
+            .sorted(orderDateDesc())
+            .toList();
+
+        Map<Long, RestaurantRealtimeDto> restaurants = fetchRestaurants(sortedOrders.stream()
+            .map(Order::getRestaurantId)
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toSet()));
+        Map<Long, DeliveryAgentRealtimeDto> deliveryPartners = fetchDeliveryAgents(sortedOrders.stream()
+            .map(Order::getDeliveryAgentId)
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toSet()));
+
+        return sortedOrders.stream()
+            .map(order -> toResponse(order, restaurants, deliveryPartners))
+            .toList();
+    }
+
     private OrderResponse toResponse(Order order) {
+        return toResponse(
+            order,
+            fetchRestaurants(Set.of(order.getRestaurantId())),
+            fetchDeliveryAgents(order.getDeliveryAgentId() == null ? Set.of() : Set.of(order.getDeliveryAgentId()))
+        );
+    }
+
+    private OrderResponse toResponse(
+        Order order,
+        Map<Long, RestaurantRealtimeDto> restaurants,
+        Map<Long, DeliveryAgentRealtimeDto> deliveryPartners
+    ) {
         List<OrderItemResponse> itemResponses = order.getItems().stream()
             .map(item -> new OrderItemResponse(
                 item.getOrderItemId(),
@@ -323,6 +352,11 @@ public class OrderServiceImpl implements OrderService {
             ))
             .toList();
 
+        RestaurantRealtimeDto restaurant = restaurants.get(order.getRestaurantId());
+        DeliveryAgentRealtimeDto deliveryPartner = order.getDeliveryAgentId() == null
+            ? null
+            : deliveryPartners.get(order.getDeliveryAgentId());
+
         return new OrderResponse(
             order.getOrderId(),
             order.getCustomerId(),
@@ -334,12 +368,58 @@ public class OrderServiceImpl implements OrderService {
             order.getModeOfPayment(),
             order.getPaymentStatus(),
             order.getOrderStatus(),
-            order.getOrderDate(),
-            order.getEstimatedDelivery(),
+            order.getOrderDate().atOffset(ZoneOffset.UTC),
+            order.getEstimatedDelivery().atOffset(ZoneOffset.UTC),
             order.getDeliveryAddress(),
             order.getSpecialInstructions(),
-            itemResponses
+            itemResponses,
+            restaurant == null ? null : new OrderRestaurantInfo(
+                restaurant.restaurantId(),
+                restaurant.name(),
+                restaurant.phone(),
+                restaurant.address(),
+                restaurant.city(),
+                restaurant.isOpen(),
+                restaurant.isApproved()
+            ),
+            deliveryPartner == null ? null : new OrderDeliveryPartnerInfo(
+                deliveryPartner.agentId(),
+                deliveryPartner.userId(),
+                deliveryPartner.fullName(),
+                deliveryPartner.phone(),
+                deliveryPartner.verificationStatus()
+            )
         );
+    }
+
+    private Map<Long, RestaurantRealtimeDto> fetchRestaurants(Set<Long> restaurantIds) {
+        Map<Long, RestaurantRealtimeDto> restaurants = new HashMap<>();
+        for (Long restaurantId : restaurantIds) {
+            try {
+                RestaurantRealtimeDto restaurant = restaurantClient.getRestaurantById(restaurantId);
+                if (restaurant != null) {
+                    restaurants.put(restaurantId, restaurant);
+                }
+            } catch (RuntimeException ignored) {
+                // Preserve order visibility when restaurant metadata is temporarily unavailable.
+            }
+        }
+        return restaurants;
+    }
+
+    private Map<Long, DeliveryAgentRealtimeDto> fetchDeliveryAgents(Set<Long> deliveryAgentIds) {
+        Map<Long, DeliveryAgentRealtimeDto> deliveryAgents = new HashMap<>();
+        for (Long deliveryAgentId : deliveryAgentIds) {
+            try {
+                DeliveryAgentRealtimeDto deliveryAgent = deliveryAgentClient.getAgentById(deliveryAgentId);
+                if (deliveryAgent != null) {
+                    deliveryAgents.put(deliveryAgentId, deliveryAgent);
+                }
+            } catch (RuntimeException ignored) {
+                // Preserve order visibility when delivery metadata is temporarily unavailable.
+            }
+        }
+        return deliveryAgents;
     }
 
     private String normalizeText(String value) {
