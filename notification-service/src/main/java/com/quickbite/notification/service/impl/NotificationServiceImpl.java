@@ -1,6 +1,6 @@
 package com.quickbite.notification.service.impl;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -103,7 +103,7 @@ public class NotificationServiceImpl implements NotificationService {
             .findByNotificationIdAndRecipientIdAndRecipientRole(notificationId, recipientId, recipientRole)
             .orElseThrow(() -> new ResourceNotFoundException("Notification not found for notificationId " + notificationId));
         notification.setRead(true);
-        notification.setReadAt(LocalDateTime.now());
+        notification.setReadAt(Instant.now());
         return notificationRepository.save(notification);
     }
 
@@ -111,7 +111,7 @@ public class NotificationServiceImpl implements NotificationService {
     public List<Notification> markAllRead(Long recipientId, String recipientRole) {
         List<Notification> notifications = notificationRepository
             .findByRecipientIdAndRecipientRoleAndIsReadOrderBySentAtDesc(recipientId, recipientRole, false);
-        LocalDateTime readAt = LocalDateTime.now();
+        Instant readAt = Instant.now();
         notifications.forEach(notification -> {
             notification.setRead(true);
             notification.setReadAt(readAt);
@@ -150,6 +150,11 @@ public class NotificationServiceImpl implements NotificationService {
         request.setMessage(event.getMessage());
         request.setRelatedId(event.getRelatedId());
         request.setRelatedType(event.getRelatedType());
+        request.setOrderId(event.getOrderId());
+        request.setDeliveryId(event.getDeliveryId());
+        request.setRating(event.getRating());
+        request.setActorName(event.getActorName());
+        request.setReviewText(event.getReviewText());
         request.setRead(false);
         return send(request);
     }
@@ -164,6 +169,11 @@ public class NotificationServiceImpl implements NotificationService {
         request.setMessage(source.getMessage());
         request.setRelatedId(source.getRelatedId());
         request.setRelatedType(source.getRelatedType());
+        request.setOrderId(source.getOrderId());
+        request.setDeliveryId(source.getDeliveryId());
+        request.setRating(source.getRating());
+        request.setActorName(source.getActorName());
+        request.setReviewText(source.getReviewText());
         request.setRead(source.isRead());
         return request;
     }
@@ -178,8 +188,13 @@ public class NotificationServiceImpl implements NotificationService {
                 .message(request.getMessage())
                 .relatedId(request.getRelatedId())
                 .relatedType(request.getRelatedType())
+                .orderId(request.getOrderId())
+                .deliveryId(request.getDeliveryId())
+                .rating(request.getRating())
+                .actorName(request.getActorName())
+                .reviewText(request.getReviewText())
                 .isRead(request.isRead())
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
                 .build();
     }
 
