@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
+import com.quickbite.auth.dto.ApiResponseDto;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -41,6 +43,27 @@ public class GlobalExceptionHandler {
 		body.put("path", request.getDescription(false).replace("uri=", ""));
 		
 		return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);
+	}
+
+	@ExceptionHandler(AccountAccessException.class)
+	public ResponseEntity<Map<String, Object>> handleAccountAccessException(
+			AccountAccessException ex, WebRequest request) {
+
+		Map<String, Object> body = new HashMap<>();
+		body.put("timestamp", LocalDateTime.now());
+		body.put("status", ex.getHttpStatus().value());
+		body.put("error", ex.getHttpStatus().getReasonPhrase());
+		body.put("message", ex.getMessage());
+		body.put("accountStatus", ex.getStatus().name());
+		body.put("path", request.getDescription(false).replace("uri=", ""));
+
+		return new ResponseEntity<>(body, ex.getHttpStatus());
+	}
+
+	@ExceptionHandler(IllegalOperationException.class)
+	public ResponseEntity<ApiResponseDto> handleIllegalOperationException(IllegalOperationException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN)
+				.body(new ApiResponseDto(false, ex.getMessage()));
 	}
 
 	@ExceptionHandler(RuntimeException.class)
