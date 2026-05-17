@@ -8,11 +8,16 @@ import java.util.List;
 import java.util.Optional;
 
 import com.quickbite.auth.client.RestaurantServiceClient;
+import com.quickbite.auth.exception.IllegalOperationException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.quickbite.auth.entity.AdminUser;
 import com.quickbite.auth.entity.Customer;
@@ -51,6 +56,26 @@ class UserAdministrationServiceTest {
 
     @InjectMocks
     private UserAdministrationService service;
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private AdminUser authenticateAdmin(Long adminId, String email) {
+        AdminUser actingAdmin = new AdminUser();
+        actingAdmin.setAdminId(adminId);
+        actingAdmin.setEmail(email);
+        when(adminUserRepository.findByEmail(email)).thenReturn(Optional.of(actingAdmin));
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(
+                email,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+            )
+        );
+        return actingAdmin;
+    }
 
     @Test
     void getAllUsers_ShouldReturnAllUsers() {
@@ -160,6 +185,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_Customer_ShouldSuspendUser() {
+        authenticateAdmin(99L, "admin@test.com");
         Customer customer = new Customer();
         customer.setCustomerId(1L);
         customer.setEmail("customer@test.com");
@@ -175,6 +201,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_RestaurantOwner_ShouldSuspendUser() {
+        authenticateAdmin(99L, "admin@test.com");
         RestaurantOwner owner = new RestaurantOwner();
         owner.setOwnerId(2L);
         owner.setEmail("owner@test.com");
@@ -190,6 +217,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_DeliveryPartner_ShouldSuspendUser() {
+        authenticateAdmin(99L, "admin@test.com");
         DeliveryPartner partner = new DeliveryPartner();
         partner.setPartnerId(3L);
         partner.setEmail("partner@test.com");
@@ -205,6 +233,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_Admin_ShouldSuspendUser() {
+        authenticateAdmin(99L, "admin@test.com");
         AdminUser admin = new AdminUser();
         admin.setAdminId(4L);
         admin.setEmail("admin@test.com");
@@ -220,6 +249,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_CustomerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(customerRepository.findByCustomerId(1L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.suspendUser(UserRole.CUSTOMER, 1L));
@@ -230,6 +260,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_RestaurantOwnerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(restaurantOwnerRepository.findByOwnerId(2L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.suspendUser(UserRole.RESTAURANT_OWNER, 2L));
@@ -239,6 +270,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_DeliveryPartnerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(deliveryPartnerRepository.findByPartnerId(3L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.suspendUser(UserRole.DELIVERY_PARTNER, 3L));
@@ -248,6 +280,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void suspendUser_AdminNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(adminUserRepository.findByAdminId(4L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.suspendUser(UserRole.ADMIN, 4L));
@@ -257,6 +290,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_Customer_ShouldReactivateUser() {
+        authenticateAdmin(99L, "admin@test.com");
         Customer customer = new Customer();
         customer.setCustomerId(1L);
         customer.setEmail("customer@test.com");
@@ -272,6 +306,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_RestaurantOwner_ShouldReactivateUser() {
+        authenticateAdmin(99L, "admin@test.com");
         RestaurantOwner owner = new RestaurantOwner();
         owner.setOwnerId(2L);
         owner.setEmail("owner@test.com");
@@ -287,6 +322,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_DeliveryPartner_ShouldReactivateUser() {
+        authenticateAdmin(99L, "admin@test.com");
         DeliveryPartner partner = new DeliveryPartner();
         partner.setPartnerId(3L);
         partner.setEmail("partner@test.com");
@@ -302,6 +338,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_Admin_ShouldReactivateUser() {
+        authenticateAdmin(99L, "admin@test.com");
         AdminUser admin = new AdminUser();
         admin.setAdminId(4L);
         admin.setEmail("admin@test.com");
@@ -317,6 +354,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_CustomerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(customerRepository.findByCustomerId(1L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.reactivateUser(UserRole.CUSTOMER, 1L));
@@ -326,6 +364,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_RestaurantOwnerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(restaurantOwnerRepository.findByOwnerId(2L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.reactivateUser(UserRole.RESTAURANT_OWNER, 2L));
@@ -335,6 +374,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_DeliveryPartnerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(deliveryPartnerRepository.findByPartnerId(3L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.reactivateUser(UserRole.DELIVERY_PARTNER, 3L));
@@ -344,6 +384,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void reactivateUser_AdminNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(adminUserRepository.findByAdminId(4L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.reactivateUser(UserRole.ADMIN, 4L));
@@ -353,6 +394,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_Customer_ShouldDeleteUser() {
+        authenticateAdmin(99L, "admin@test.com");
         Customer customer = new Customer();
         customer.setCustomerId(1L);
         customer.setEmail("customer@test.com");
@@ -367,6 +409,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_RestaurantOwner_ShouldDeleteUser() {
+        authenticateAdmin(99L, "admin@test.com");
         RestaurantOwner owner = new RestaurantOwner();
         owner.setOwnerId(2L);
         owner.setEmail("owner@test.com");
@@ -381,6 +424,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_DeliveryPartner_ShouldDeleteUser() {
+        authenticateAdmin(99L, "admin@test.com");
         DeliveryPartner partner = new DeliveryPartner();
         partner.setPartnerId(3L);
         partner.setEmail("partner@test.com");
@@ -395,6 +439,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_Admin_ShouldDeleteUser() {
+        authenticateAdmin(99L, "admin@test.com");
         AdminUser admin = new AdminUser();
         admin.setAdminId(4L);
         admin.setEmail("admin@test.com");
@@ -409,6 +454,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_CustomerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(customerRepository.findByCustomerId(1L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.deleteUser(UserRole.CUSTOMER, 1L));
@@ -418,6 +464,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_RestaurantOwnerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(restaurantOwnerRepository.findByOwnerId(2L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.deleteUser(UserRole.RESTAURANT_OWNER, 2L));
@@ -427,6 +474,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_DeliveryPartnerNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(deliveryPartnerRepository.findByPartnerId(3L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.deleteUser(UserRole.DELIVERY_PARTNER, 3L));
@@ -436,6 +484,7 @@ class UserAdministrationServiceTest {
 
     @Test
     void deleteUser_AdminNotFound_ShouldThrowException() {
+        authenticateAdmin(99L, "admin@test.com");
         when(adminUserRepository.findByAdminId(4L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.deleteUser(UserRole.ADMIN, 4L));
@@ -581,5 +630,47 @@ class UserAdministrationServiceTest {
         var result = service.getUsersByRoleForInternal(UserRole.ADMIN);
 
         assertEquals(1, result.size());
+    }
+
+    @Test
+    void suspendUser_AdminSelf_ShouldThrowForbiddenAndNotSave() {
+        authenticateAdmin(4L, "admin@test.com");
+        AdminUser admin = new AdminUser();
+        admin.setAdminId(4L);
+        admin.setEmail("admin@test.com");
+        when(adminUserRepository.findByAdminId(4L)).thenReturn(Optional.of(admin));
+
+        assertThrows(IllegalOperationException.class, () -> service.suspendUser(UserRole.ADMIN, 4L));
+
+        verify(adminUserRepository, never()).save(any(AdminUser.class));
+        verify(emailService, never()).sendUserSuspendedEmail(anyLong(), any(), any(), anyString());
+    }
+
+    @Test
+    void reactivateUser_AdminSelf_ShouldThrowForbiddenAndNotSave() {
+        authenticateAdmin(4L, "admin@test.com");
+        AdminUser admin = new AdminUser();
+        admin.setAdminId(4L);
+        admin.setEmail("admin@test.com");
+        when(adminUserRepository.findByAdminId(4L)).thenReturn(Optional.of(admin));
+
+        assertThrows(IllegalOperationException.class, () -> service.reactivateUser(UserRole.ADMIN, 4L));
+
+        verify(adminUserRepository, never()).save(any(AdminUser.class));
+        verify(emailService, never()).sendUserReactivatedEmail(anyLong(), any(), any(), anyString());
+    }
+
+    @Test
+    void deleteUser_AdminSelf_ShouldThrowForbiddenAndNotDelete() {
+        authenticateAdmin(4L, "admin@test.com");
+        AdminUser admin = new AdminUser();
+        admin.setAdminId(4L);
+        admin.setEmail("admin@test.com");
+        when(adminUserRepository.findByAdminId(4L)).thenReturn(Optional.of(admin));
+
+        assertThrows(IllegalOperationException.class, () -> service.deleteUser(UserRole.ADMIN, 4L));
+
+        verify(adminUserRepository, never()).delete(any(AdminUser.class));
+        verify(emailService, never()).sendUserDeletedEmail(anyLong(), any(), any(), anyString());
     }
 }
