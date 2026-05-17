@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.quickbite.orderservice.client.DeliveryAgentClient;
 import com.quickbite.orderservice.client.RestaurantClient;
 import com.quickbite.orderservice.client.dto.RestaurantRealtimeDto;
 import com.quickbite.orderservice.dto.PlaceOrderItemRequest;
@@ -50,11 +52,14 @@ class OrderServiceImplTest {
     @Mock
     private RestaurantClient restaurantClient;
 
+    @Mock
+    private DeliveryAgentClient deliveryAgentClient;
+
     private OrderServiceImpl orderService;
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderServiceImpl(orderRepository, eventPublisher, realtimeNotifier, restaurantClient);
+        orderService = new OrderServiceImpl(orderRepository, eventPublisher, realtimeNotifier, restaurantClient, deliveryAgentClient);
     }
 
     @Test
@@ -62,7 +67,7 @@ class OrderServiceImplTest {
         PlaceOrderRequest request = placeOrderRequest("checkout-1", 1L, 10L, new BigDecimal("15.00"));
         when(orderRepository.findByCheckoutReference("checkout-1")).thenReturn(Optional.empty());
         when(orderRepository.findTopByCustomerIdOrderByOrderDateDesc(1L)).thenReturn(Optional.empty());
-        when(restaurantClient.getRestaurantById(10L)).thenReturn(new RestaurantRealtimeDto(10L, 1L, "QuickBite", true, true));
+        when(restaurantClient.getRestaurantById(10L)).thenReturn(new RestaurantRealtimeDto(10L, 1L, "QuickBite", "1234567890", "123 Street", "City", true, true));
 
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order order = invocation.getArgument(0);
@@ -138,7 +143,7 @@ class OrderServiceImplTest {
     void placeOrder_RejectsClosedRestaurant() {
         when(orderRepository.findByCheckoutReference("checkout-closed")).thenReturn(Optional.empty());
         when(orderRepository.findTopByCustomerIdOrderByOrderDateDesc(1L)).thenReturn(Optional.empty());
-        when(restaurantClient.getRestaurantById(10L)).thenReturn(new RestaurantRealtimeDto(10L, 1L, "QuickBite", false, true));
+        when(restaurantClient.getRestaurantById(10L)).thenReturn(new RestaurantRealtimeDto(10L, 1L, "QuickBite", "1234567890", "123 Street", "City", false, true));
 
         assertThatThrownBy(() -> orderService.placeOrder(placeOrderRequest("checkout-closed", 1L, 10L, BigDecimal.ZERO)))
             .isInstanceOf(BadRequestException.class)
@@ -149,7 +154,7 @@ class OrderServiceImplTest {
     void placeOrder_RejectsDiscountGreaterThanTotal() {
         when(orderRepository.findByCheckoutReference("checkout-discount")).thenReturn(Optional.empty());
         when(orderRepository.findTopByCustomerIdOrderByOrderDateDesc(1L)).thenReturn(Optional.empty());
-        when(restaurantClient.getRestaurantById(10L)).thenReturn(new RestaurantRealtimeDto(10L, 1L, "QuickBite", true, true));
+        when(restaurantClient.getRestaurantById(10L)).thenReturn(new RestaurantRealtimeDto(10L, 1L, "QuickBite", "1234567890", "123 Street", "City", true, true));
 
         assertThatThrownBy(() -> orderService.placeOrder(placeOrderRequest("checkout-discount", 1L, 10L, new BigDecimal("500.00"))))
             .isInstanceOf(BadRequestException.class)
@@ -376,7 +381,7 @@ class OrderServiceImplTest {
 
         when(orderRepository.findByCheckoutReference("checkout-fresh")).thenReturn(Optional.empty());
         when(orderRepository.findTopByCustomerIdOrderByOrderDateDesc(3L)).thenReturn(Optional.of(deliveredOrder));
-        when(restaurantClient.getRestaurantById(21L)).thenReturn(new RestaurantRealtimeDto(21L, 1L, "QuickBite", true, true));
+        when(restaurantClient.getRestaurantById(21L)).thenReturn(new RestaurantRealtimeDto(21L, 1L, "QuickBite", "1234567890", "123 Street", "City", true, true));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order order = invocation.getArgument(0);
             order.setOrderId(68L);
@@ -399,7 +404,7 @@ class OrderServiceImplTest {
 
         assertThat(response.orderId()).isEqualTo(68L);
         assertThat(response.discount()).isEqualByComparingTo("0.00");
-        assertThat(response.estimatedDelivery()).isAfter(LocalDateTime.now().plusMinutes(40));
+        assertThat(response.estimatedDelivery()).isAfter(OffsetDateTime.now().plusMinutes(40));
     }
 
     @Test
@@ -418,7 +423,7 @@ class OrderServiceImplTest {
         when(orderRepository.findById(20L)).thenReturn(Optional.of(existingOrder));
         when(orderRepository.findByCheckoutReference(anyString())).thenReturn(Optional.empty());
         when(orderRepository.findTopByCustomerIdOrderByOrderDateDesc(8L)).thenReturn(Optional.empty());
-        when(restaurantClient.getRestaurantById(44L)).thenReturn(new RestaurantRealtimeDto(44L, 1L, "QuickBite", true, true));
+        when(restaurantClient.getRestaurantById(44L)).thenReturn(new RestaurantRealtimeDto(44L, 1L, "QuickBite", "1234567890", "123 Street", "City", true, true));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order order = invocation.getArgument(0);
             order.setOrderId(21L);
