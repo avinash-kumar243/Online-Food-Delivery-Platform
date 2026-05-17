@@ -1,6 +1,9 @@
 package com.quickbite.auth.config;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,6 +13,9 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.quickbite.auth.exception.AccountAccessException;
+import com.quickbite.auth.service.TokenBlacklistService;
 import com.quickbite.auth.service.CustomUserDetailsService;
 import com.quickbite.auth.service.JwtService;
 
@@ -25,6 +31,8 @@ public class JwtFilter extends OncePerRequestFilter {  // JWTFilter = It ask JWT
 
 	private final JwtService jwtService;
 	private final CustomUserDetailsService customUserDetailsService;
+	private final TokenBlacklistService tokenBlacklistService;
+	private final ObjectMapper objectMapper = new ObjectMapper();
 	
 	
 	@Override
@@ -61,6 +69,12 @@ public class JwtFilter extends OncePerRequestFilter {  // JWTFilter = It ask JWT
         
         token = authHeader.substring(7);
         email = jwtService.extractEmailFromToken(token);
+
+        if (tokenBlacklistService.isBlacklisted(token)) {
+            SecurityContextHolder.clearContext();
+            writeAuthFailure(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized", "Session is no longer valid", request);
+            return;
+        }
         
         if(email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
@@ -72,6 +86,10 @@ public class JwtFilter extends OncePerRequestFilter {  // JWTFilter = It ask JWT
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 }
+            } catch (AccountAccessException ex) {
+                SecurityContextHolder.clearContext();
+                writeAuthFailure(response, ex.getHttpStatus().value(), ex.getHttpStatus().getReasonPhrase(), ex.getMessage(), request);
+                return;
             } catch (RuntimeException ignored) {
                 SecurityContextHolder.clearContext();
             }
@@ -79,5 +97,19 @@ public class JwtFilter extends OncePerRequestFilter {  // JWTFilter = It ask JWT
         
         filterChain.doFilter(request, response);
 	}
+
+    private void writeAuthFailure(HttpServletResponse response, int status, String error, String message, HttpServletRequest request) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", status);
+        body.put("error", error);
+        body.put("message", message);
+        body.put("path", request.getRequestURI());
+
+        objectMapper.writeValue(response.getWriter(), body);
+    }
 	
 }
