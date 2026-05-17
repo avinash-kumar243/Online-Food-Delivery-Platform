@@ -71,4 +71,4 @@ quickbite:
   clients:
     order-service:
       name: order-service
-      path: /orders
+      path: /api/v1/orders
