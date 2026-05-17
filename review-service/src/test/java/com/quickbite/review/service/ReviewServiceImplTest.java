@@ -17,11 +17,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.quickbite.review.client.DeliveryClient;
+import com.quickbite.review.client.RestaurantClient;
 import com.quickbite.review.dto.ReviewSubmissionRequest;
 import com.quickbite.review.entity.Review;
 import com.quickbite.review.entity.ReviewEligibility;
 import com.quickbite.review.enums.ReviewType;
 import com.quickbite.review.exception.ReviewNotFoundException;
+import com.quickbite.review.messaging.GenericEventPublisher;
 import com.quickbite.review.repository.ReviewRepository;
 import com.quickbite.review.service.impl.ReviewServiceImpl;
 
@@ -34,11 +37,26 @@ class ReviewServiceImplTest {
     @Mock
     private ReviewAuthorizationValidator reviewAuthorizationValidator;
 
+    @Mock
+    private RestaurantClient restaurantClient;
+
+    @Mock
+    private DeliveryClient deliveryClient;
+
+    @Mock
+    private GenericEventPublisher eventPublisher;
+
     private ReviewServiceImpl reviewService;
 
     @BeforeEach
     void setUp() {
-        reviewService = new ReviewServiceImpl(reviewRepository, reviewAuthorizationValidator);
+        reviewService = new ReviewServiceImpl(
+            reviewRepository,
+            reviewAuthorizationValidator,
+            restaurantClient,
+            deliveryClient,
+            eventPublisher
+        );
     }
 
     @Test
