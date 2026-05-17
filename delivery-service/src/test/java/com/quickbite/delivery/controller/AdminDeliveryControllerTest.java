@@ -48,8 +48,8 @@ class AdminDeliveryControllerTest {
 			.build();
 
 		adminResponse = new AdminDeliveryAgentResponse(
-			1L, 101L, "Arun Kumar", "arun@example.com", "9999999999", "Bike", "KA-01-AB-1234",
-			false, false, "PENDING", LocalDateTime.now().minusDays(1), null, null, null
+			1L, 101L, "Arun Kumar", "arun@example.com", "9999999999", 4.8, "Bike", "KA-01-AB-1234",
+			false, false, "PENDING", 25, LocalDateTime.now().minusDays(1), null, null, null
 		);
 		agentResponse = new DeliveryAgentResponse(
 			1L, 101L, "Arun Kumar", "9999999999", "Bike", "KA-01-AB-1234",
