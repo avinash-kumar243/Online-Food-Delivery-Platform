@@ -60,6 +60,7 @@ class AdminRestaurantControllerTest {
             "12 Main Street",
             "Pune",
             "9876543210",
+            4.5,
             false,
             false,
             "PENDING",
