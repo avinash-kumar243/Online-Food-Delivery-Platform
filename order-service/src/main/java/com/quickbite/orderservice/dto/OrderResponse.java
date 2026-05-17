@@ -1,7 +1,7 @@
 package com.quickbite.orderservice.dto;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import com.quickbite.orderservice.entity.OrderStatus;
@@ -17,10 +17,12 @@ public record OrderResponse(
     String modeOfPayment,
     String paymentStatus,
     OrderStatus orderStatus,
-    LocalDateTime orderDate,
-    LocalDateTime estimatedDelivery,
+    OffsetDateTime orderDate,
+    OffsetDateTime estimatedDelivery,
     String deliveryAddress,
     String specialInstructions,
-    List<OrderItemResponse> items
+    List<OrderItemResponse> items,
+    OrderRestaurantInfo restaurant,
+    OrderDeliveryPartnerInfo deliveryPartner
 ) {
 }
