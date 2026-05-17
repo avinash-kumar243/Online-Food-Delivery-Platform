@@ -262,6 +262,18 @@ public class DeliveryServiceImpl implements DeliveryService {
 			.toList();
 	}
 
+	@Override
+	@Transactional
+	public DeliveryAgentResponse updateAverageRating(Long agentId, double avgRating) {
+		if (avgRating < 0.0 || avgRating > 5.0) {
+			throw new BadRequestException("avgRating must be between 0.0 and 5.0");
+		}
+
+		DeliveryAgent agent = getAgent(agentId);
+		agent.setAvgRating(avgRating);
+		return toResponse(deliveryRepository.save(agent));
+	}
+
 	private DeliveryAgent getAgent(Long agentId) {
 		return deliveryRepository.findById(agentId)
 			.orElseThrow(() -> new ResourceNotFoundException("Delivery agent not found with id " + agentId));
@@ -367,11 +379,13 @@ public class DeliveryServiceImpl implements DeliveryService {
 			agent.getFullName(),
 			user != null ? user.email() : null,
 			agent.getPhone(),
+			agent.getAvgRating(),
 			agent.getVehicleType(),
 			agent.getVehicleNumber(),
 			agent.isAvailable(),
 			agent.isVerified(),
 			verificationStatus.name(),
+			agent.getTotalDeliveries(),
 			agent.getSubmittedAt(),
 			agent.getRejectionReason(),
 			agent.getReviewedByAdminId(),
