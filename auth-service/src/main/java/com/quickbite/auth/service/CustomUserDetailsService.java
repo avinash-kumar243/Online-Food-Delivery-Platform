@@ -13,6 +13,7 @@ import com.quickbite.auth.entity.Customer;
 import com.quickbite.auth.entity.DeliveryPartner;
 import com.quickbite.auth.entity.RestaurantOwner;
 import com.quickbite.auth.enums.UserStatus;
+import com.quickbite.auth.exception.AccountAccessException;
 import com.quickbite.auth.repository.AdminUserRepository;
 import com.quickbite.auth.repository.CustomerRepository;
 import com.quickbite.auth.repository.DeliveryPartnerRepository;
@@ -84,7 +85,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
 	private void ensureActive(UserStatus status, String userType) {
 		if (status == UserStatus.SUSPENDED || status == UserStatus.DELETED) {
-			throw new UsernameNotFoundException(userType + " account is not active");
+			throw new AccountAccessException(status, userType + " account is " + status.name().toLowerCase());
 		}
 	}
 	
