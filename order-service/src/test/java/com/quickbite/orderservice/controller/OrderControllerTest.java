@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -63,11 +63,13 @@ class OrderControllerTest {
             "CARD",
             "PENDING",
             OrderStatus.PLACED,
-            LocalDateTime.now(),
-            LocalDateTime.now().plusMinutes(45),
+            OffsetDateTime.now(),
+            OffsetDateTime.now().plusMinutes(45),
             "221B Baker Street",
             "No onions",
-            List.of(new OrderItemResponse(11L, 101L, "Burger", new BigDecimal("120.00"), 2, "Extra cheese", new BigDecimal("240.00")))
+            List.of(new OrderItemResponse(11L, 101L, "Burger", new BigDecimal("120.00"), 2, "Extra cheese", new BigDecimal("240.00"))),
+            null,
+            null
         );
     }
 
@@ -199,7 +201,9 @@ class OrderControllerTest {
             orderResponse.estimatedDelivery(),
             orderResponse.deliveryAddress(),
             orderResponse.specialInstructions(),
-            orderResponse.items()
+            orderResponse.items(),
+            orderResponse.restaurant(),
+            orderResponse.deliveryPartner()
         );
         when(orderService.updateOrderStatus(1L, OrderStatus.CONFIRMED)).thenReturn(confirmedResponse);
 
@@ -242,7 +246,9 @@ class OrderControllerTest {
             orderResponse.estimatedDelivery(),
             orderResponse.deliveryAddress(),
             orderResponse.specialInstructions(),
-            orderResponse.items()
+            orderResponse.items(),
+            orderResponse.restaurant(),
+            orderResponse.deliveryPartner()
         );
         when(orderService.assignDeliveryAgent(1L, 70L)).thenReturn(assignedResponse);
 
@@ -287,7 +293,9 @@ class OrderControllerTest {
             orderResponse.estimatedDelivery(),
             orderResponse.deliveryAddress(),
             orderResponse.specialInstructions(),
-            orderResponse.items()
+            orderResponse.items(),
+            orderResponse.restaurant(),
+            orderResponse.deliveryPartner()
         );
         when(orderService.updatePaymentStatus(1L, "PAID")).thenReturn(paidResponse);
 
