@@ -12,4 +12,9 @@ public class NotificationEvent {
     private String message;
     private String relatedId;
     private String relatedType;
+    private String orderId;
+    private String deliveryId;
+    private Integer rating;
+    private String actorName;
+    private String reviewText;
 }
