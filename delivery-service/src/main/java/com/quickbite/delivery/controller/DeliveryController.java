@@ -20,6 +20,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.quickbite.delivery.dto.AvailabilityUpdateRequest;
 import com.quickbite.delivery.dto.AvailabilityUpdateResponse;
 import com.quickbite.delivery.dto.DeliveryAgentResponse;
+import com.quickbite.delivery.dto.DeliveryRatingRequest;
 import com.quickbite.delivery.dto.LocationUpdateRequest;
 import com.quickbite.delivery.dto.LocationUpdateResponse;
 import com.quickbite.delivery.dto.NearbyAgentResponse;
@@ -143,6 +144,13 @@ public class DeliveryController {
 	@PostMapping("/{agentId}/complete-delivery")
 	public ResponseEntity<DeliveryAgentResponse> completeDelivery(@PathVariable Long agentId) {
 		return ResponseEntity.ok(deliveryService.completeDelivery(agentId));
+	}
+
+	@PatchMapping("/{id}/rating")
+	public ResponseEntity<DeliveryAgentResponse> updateAverageRating(
+			@PathVariable Long id,
+			@Valid @RequestBody DeliveryRatingRequest request) {
+		return ResponseEntity.ok(deliveryService.updateAverageRating(id, request.avgRating()));
 	}
 
 	@GetMapping("/active")
