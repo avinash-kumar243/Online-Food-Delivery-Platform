@@ -13,6 +13,7 @@ public record AdminRestaurantResponse(
     String address,
     String city,
     String phone,
+    Double avgRating,
     Boolean isOpen,
     Boolean isApproved,
     String approvalStatus,
