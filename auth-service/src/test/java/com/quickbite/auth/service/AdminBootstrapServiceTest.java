@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.quickbite.auth.entity.AdminUser;
+import com.quickbite.auth.enums.UserStatus;
 import com.quickbite.auth.repository.AdminUserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,13 +34,14 @@ class AdminBootstrapServiceTest {
         ReflectionTestUtils.setField(adminBootstrapService, "adminFullName", "QuickBite Admin");
         ReflectionTestUtils.setField(adminBootstrapService, "adminEmail", "admin@quickbite.local");
         ReflectionTestUtils.setField(adminBootstrapService, "adminPassword", "Admin@12345");
+        ReflectionTestUtils.setField(adminBootstrapService, "reactivateExistingAdmin", true);
     }
 
     @Test
     @DisplayName("Run - Should Create Admin when not exists")
     void run_CreateAdminWhenNotExists() throws Exception {
         // Arrange
-        when(adminUserRepository.existsByEmail("admin@quickbite.local")).thenReturn(false);
+        when(adminUserRepository.findByEmail("admin@quickbite.local")).thenReturn(java.util.Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashedPassword");
 
         // Act
@@ -51,16 +53,17 @@ class AdminBootstrapServiceTest {
     }
 
     @Test
-    @DisplayName("Run - Should Skip when Admin Email already exists")
-    void run_SkipWhenAdminExists() throws Exception {
-        // Arrange
-        when(adminUserRepository.existsByEmail("admin@quickbite.local")).thenReturn(true);
+    @DisplayName("Run - Should Reactivate Existing Suspended Admin")
+    void run_ReactivateExistingAdmin() throws Exception {
+        AdminUser admin = new AdminUser();
+        admin.setEmail("admin@quickbite.local");
+        admin.setStatus(UserStatus.SUSPENDED);
+        admin.setIsActive(Boolean.FALSE);
+        when(adminUserRepository.findByEmail("admin@quickbite.local")).thenReturn(java.util.Optional.of(admin));
 
-        // Act
         adminBootstrapService.run();
 
-        // Assert
-        verify(adminUserRepository, never()).save(any(AdminUser.class));
+        verify(adminUserRepository).save(admin);
         verify(emailService, never()).sendUserCreatedEmail(any(), anyString(), anyString(), anyString());
     }
 
@@ -74,7 +77,7 @@ class AdminBootstrapServiceTest {
         adminBootstrapService.run();
 
         // Assert
-        verify(adminUserRepository, never()).existsByEmail(anyString());
+        verify(adminUserRepository, never()).findByEmail(anyString());
         verify(adminUserRepository, never()).save(any(AdminUser.class));
     }
 
@@ -82,7 +85,7 @@ class AdminBootstrapServiceTest {
     @DisplayName("Run - Should Skip when Bootstrap Password is Missing")
     void run_SkipWhenPasswordMissing() throws Exception {
         ReflectionTestUtils.setField(adminBootstrapService, "adminPassword", "   ");
-        when(adminUserRepository.existsByEmail("admin@quickbite.local")).thenReturn(false);
+        when(adminUserRepository.findByEmail("admin@quickbite.local")).thenReturn(java.util.Optional.empty());
 
         adminBootstrapService.run();
 
