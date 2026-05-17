@@ -3,6 +3,7 @@ package com.quickbite.review.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,9 +17,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import feign.FeignException;
+import feign.Request;
+import feign.RequestTemplate;
 
 import com.quickbite.review.client.DeliveryClient;
 import com.quickbite.review.client.RestaurantClient;
+import com.quickbite.review.client.dto.DeliveryRatingRequestDto;
+import com.quickbite.review.client.dto.RestaurantRatingRequestDto;
 import com.quickbite.review.dto.ReviewSubmissionRequest;
 import com.quickbite.review.entity.Review;
 import com.quickbite.review.entity.ReviewEligibility;
@@ -80,6 +86,7 @@ class ReviewServiceImplTest {
         assertThat(response.comment()).isEqualTo("Great food");
         assertThat(response.restaurantId()).isEqualTo(30L);
         assertThat(response.agentId()).isEqualTo(40L);
+        verify(restaurantClient).updateAverageRating(eq(30L), any(RestaurantRatingRequestDto.class));
     }
 
     @Test
@@ -99,6 +106,52 @@ class ReviewServiceImplTest {
         assertThat(response.rating()).isEqualTo(4);
         assertThat(response.comment()).isEqualTo("Fast delivery");
         verify(reviewRepository).save(existingReview);
+    }
+
+    @Test
+    void createFoodReview_WhenRatingSyncFails_StillReturnsSavedReview() {
+        ReviewSubmissionRequest request = new ReviewSubmissionRequest(10L, 20L, 5, "Solid");
+        ReviewEligibility eligibility = eligibility(10L, 20L, 30L, 40L);
+
+        when(reviewAuthorizationValidator.validateDeliveredOrder(10L, 20L)).thenReturn(eligibility);
+        when(reviewRepository.findByOrderIdAndCustomerIdAndReviewType(10L, 20L, ReviewType.FOOD)).thenReturn(Optional.empty());
+        when(reviewRepository.save(any(Review.class))).thenAnswer(invocation -> {
+            Review review = invocation.getArgument(0);
+            review.setReviewId(100L);
+            review.setReviewDate(LocalDateTime.now());
+            return review;
+        });
+        when(reviewRepository.findAverageFoodRatingByRestaurantId(30L)).thenReturn(5.0d);
+        when(restaurantClient.updateAverageRating(eq(30L), any(RestaurantRatingRequestDto.class)))
+            .thenThrow(feignException());
+
+        var response = reviewService.createFoodReview(request);
+
+        assertThat(response.reviewId()).isEqualTo(100L);
+        verify(eventPublisher).send(eq("review.food_submitted"), any());
+    }
+
+    @Test
+    void createDeliveryReview_WhenNotificationPublishFails_StillReturnsSavedReview() {
+        ReviewSubmissionRequest request = new ReviewSubmissionRequest(10L, 20L, 4, "Okay");
+        ReviewEligibility eligibility = eligibility(10L, 20L, 30L, 40L);
+
+        when(reviewAuthorizationValidator.validateDeliveredOrder(10L, 20L)).thenReturn(eligibility);
+        when(reviewRepository.findByOrderIdAndCustomerIdAndReviewType(10L, 20L, ReviewType.DELIVERY)).thenReturn(Optional.empty());
+        when(reviewRepository.save(any(Review.class))).thenAnswer(invocation -> {
+            Review review = invocation.getArgument(0);
+            review.setReviewId(101L);
+            review.setReviewDate(LocalDateTime.now());
+            return review;
+        });
+        when(reviewRepository.findAverageDeliveryRatingByAgentId(40L)).thenReturn(4.0d);
+        org.mockito.Mockito.doThrow(new RuntimeException("rabbit down"))
+            .when(eventPublisher).send(eq("review.delivery_submitted"), any());
+
+        var response = reviewService.createDeliveryReview(request);
+
+        assertThat(response.reviewId()).isEqualTo(101L);
+        verify(deliveryClient).updateAverageRating(eq(40L), any(DeliveryRatingRequestDto.class));
     }
 
     @Test
@@ -170,5 +223,10 @@ class ReviewServiceImplTest {
             .reviewDate(reviewDate)
             .verified(false)
             .build();
+    }
+
+    private FeignException feignException() {
+        Request request = Request.create(Request.HttpMethod.PATCH, "/api/v1/restaurants/30/rating", java.util.Map.of(), null, new RequestTemplate());
+        return new FeignException.BadGateway("rating sync failed", request, null, java.util.Map.of());
     }
 }
