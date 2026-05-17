@@ -11,8 +11,10 @@ import com.quickbite.auth.enums.UserStatus;
 import com.quickbite.auth.repository.AdminUserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class AdminBootstrapService implements CommandLineRunner {
 
@@ -32,9 +34,18 @@ public class AdminBootstrapService implements CommandLineRunner {
     @Value("${quickbite.admin.bootstrap.password:}")
     private String adminPassword;
 
+    @Value("${quickbite.admin.bootstrap.reactivate-existing:true}")
+    private boolean reactivateExistingAdmin;
+
     @Override
     public void run(String... args) {
-        if (!bootstrapEnabled || adminUserRepository.existsByEmail(adminEmail)) {
+        if (!bootstrapEnabled) {
+            return;
+        }
+
+        var existingAdmin = adminUserRepository.findByEmail(adminEmail);
+        if (existingAdmin.isPresent()) {
+            reactivateAdminIfRequired(existingAdmin.get());
             return;
         }
 
@@ -55,5 +66,18 @@ public class AdminBootstrapService implements CommandLineRunner {
             admin.getEmail(),
             "ADMIN"
         );
+        log.info("Bootstrapped admin account for email={}", admin.getEmail());
+    }
+
+    private void reactivateAdminIfRequired(AdminUser admin) {
+        if (!reactivateExistingAdmin) {
+            return;
+        }
+        if (admin.getStatus() == UserStatus.SUSPENDED || Boolean.FALSE.equals(admin.getIsActive())) {
+            admin.setStatus(UserStatus.ACTIVE);
+            admin.setIsActive(Boolean.TRUE);
+            adminUserRepository.save(admin);
+            log.warn("Reactivated existing bootstrap admin account for email={}", admin.getEmail());
+        }
     }
 }
