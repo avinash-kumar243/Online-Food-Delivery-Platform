@@ -16,8 +16,10 @@ import com.quickbite.review.repository.ReviewEligibilityRepository;
 import com.rabbitmq.client.Channel;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ReviewLifecycleEventListener {
 
@@ -31,6 +33,7 @@ public class ReviewLifecycleEventListener {
     )
     public void handleOrderDelivered(OrderEventDTO event, Message message, Channel channel) throws IOException {
         try {
+            log.info("Received order delivered event for orderId={}", event.orderId());
             OrderDto order = resolveOrder(event);
             if (order != null && order.getCustomerId() != null && order.getRestaurantId() != null && order.getAgentId() != null) {
                 ReviewEligibility persistedEligibility = reviewEligibilityRepository.findByOrderId(event.orderId())
@@ -47,6 +50,7 @@ public class ReviewLifecycleEventListener {
             }
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
         } catch (Exception exception) {
+            log.error("Failed to process order delivered event for orderId={}", event.orderId(), exception);
             channel.basicNack(message.getMessageProperties().getDeliveryTag(), false, false);
             throw exception;
         }
