@@ -3,6 +3,7 @@ package com.quickbite.auth.service;
 import org.springframework.stereotype.Component;
 
 import com.quickbite.auth.enums.UserStatus;
+import com.quickbite.auth.exception.AccountAccessException;
 
 @Component
 public class UserStatusSupport {
@@ -16,10 +17,10 @@ public class UserStatusSupport {
 
     public void ensureActive(UserStatus status, String subject) {
         if (status == UserStatus.SUSPENDED) {
-            throw new RuntimeException(subject + " is suspended");
+            throw new AccountAccessException(UserStatus.SUSPENDED, subject + " is suspended");
         }
         if (status == UserStatus.DELETED) {
-            throw new RuntimeException(subject + " is deleted");
+            throw new AccountAccessException(UserStatus.DELETED, subject + " is deleted");
         }
     }
 }
