@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -53,11 +53,13 @@ class AdminOrderControllerTest {
             "CARD",
             "PENDING",
             OrderStatus.PLACED,
-            LocalDateTime.now(),
-            LocalDateTime.now().plusMinutes(45),
+            OffsetDateTime.now(),
+            OffsetDateTime.now().plusMinutes(45),
             "221B Baker Street",
             null,
-            List.of(new OrderItemResponse(11L, 101L, "Burger", new BigDecimal("120.00"), 2, null, new BigDecimal("240.00")))
+            List.of(new OrderItemResponse(11L, 101L, "Burger", new BigDecimal("120.00"), 2, null, new BigDecimal("240.00"))),
+            null,
+            null
         );
         when(orderService.getAllOrders()).thenReturn(List.of(response));
 
