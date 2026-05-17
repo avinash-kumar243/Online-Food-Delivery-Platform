@@ -1,6 +1,6 @@
 package com.quickbite.notification.entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -42,7 +42,7 @@ public class Notification {
     private String recipientRole;
 
     @Column(nullable = false)
-    private LocalDateTime sentAt;
+    private Instant sentAt;
 
     @NotBlank(message = "type is required")
     @Pattern(regexp = "[A-Z_]+", message = "type must contain uppercase letters and underscores only")
@@ -72,15 +72,37 @@ public class Notification {
     @Column(length = 100)
     private String relatedType;
 
+    @Size(max = 40, message = "orderId must not exceed 40 characters")
+    @Column(length = 40)
+    private String orderId;
+
+    @Size(max = 40, message = "deliveryId must not exceed 40 characters")
+    @Column(length = 40)
+    private String deliveryId;
+
+    private Integer rating;
+
+    @Size(max = 160, message = "actorName must not exceed 160 characters")
+    @Column(length = 160)
+    private String actorName;
+
+    @Size(max = 2000, message = "reviewText must not exceed 2000 characters")
+    @Column(length = 2000)
+    private String reviewText;
+
     @Column(nullable = false)
     private boolean isRead;
 
-    private LocalDateTime readAt;
+    private Instant readAt;
 
     @PrePersist
     public void prePersist() {
         if (sentAt == null) {
-            sentAt = LocalDateTime.now();
+            sentAt = Instant.now();
         }
+    }
+
+    public String getNotificationType() {
+        return type;
     }
 }
