@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import com.quickbite.auth.entity.*;
 import com.quickbite.auth.enums.UserStatus;
+import com.quickbite.auth.exception.AccountAccessException;
 import com.quickbite.auth.repository.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -134,10 +135,10 @@ class CustomUserDetailsServiceTest {
         when(adminUserRepository.findByEmail(anyString())).thenReturn(Optional.of(admin));
         when(userStatusSupport.resolve(any(), any())).thenReturn(UserStatus.SUSPENDED);
 
-        UsernameNotFoundException ex = assertThrows(UsernameNotFoundException.class, () ->
+        AccountAccessException ex = assertThrows(AccountAccessException.class, () ->
                 customUserDetailsService.loadUserByUsername("suspended@test.com")
         );
-        assertTrue(ex.getMessage().contains("account is not active"));
+        assertTrue(ex.getMessage().contains("account is suspended"));
     }
 
     @Test
@@ -151,8 +152,9 @@ class CustomUserDetailsServiceTest {
         when(customerRepository.findByEmail(anyString())).thenReturn(Optional.of(customer));
         when(userStatusSupport.resolve(any(), any())).thenReturn(UserStatus.DELETED);
 
-        assertThrows(UsernameNotFoundException.class, () ->
+        AccountAccessException ex = assertThrows(AccountAccessException.class, () ->
                 customUserDetailsService.loadUserByUsername("deleted@test.com")
         );
+        assertTrue(ex.getMessage().contains("account is deleted"));
     }
 }

@@ -9,6 +9,7 @@ import java.util.List;
 import com.quickbite.auth.service.AdminAuthService;
 import com.quickbite.auth.service.CustomUserDetailsService;
 import com.quickbite.auth.service.JwtService;
+import com.quickbite.auth.service.TokenBlacklistService;
 import com.quickbite.auth.service.UserAdministrationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ class InternalUserControllerTest {
 
     @MockBean private JwtService jwtService;
     @MockBean private CustomUserDetailsService customUserDetailsService;
+    @MockBean private TokenBlacklistService tokenBlacklistService;
     @MockBean private AdminAuthService adminAuthService;
 
     /**

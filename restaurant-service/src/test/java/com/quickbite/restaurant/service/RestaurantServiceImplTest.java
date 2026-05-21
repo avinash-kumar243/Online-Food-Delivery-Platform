@@ -63,6 +63,17 @@ class RestaurantServiceImplTest {
     void setUp() {
         restaurantService = new RestaurantServiceImpl(restaurantRepository, restaurantMapper, authServiceClient);
 
+        when(authServiceClient.getUserSummary(eq("RESTAURANT_OWNER"), anyLong()))
+            .thenReturn(new UserSummaryDto(
+                11L,
+                "Owner",
+                "owner@test.com",
+                "9999999999",
+                "RESTAURANT_OWNER",
+                "ACTIVE",
+                true
+            ));
+
         request = new RestaurantRequest(
             11L,
             "QuickBite Cafe",
@@ -197,6 +208,32 @@ class RestaurantServiceImplTest {
     }
 
     @Test
+    @DisplayName("Get Approved Restaurants - Filters Inactive Owners")
+    void getApprovedRestaurants_FiltersInactiveOwners() {
+        Restaurant activeRestaurant = cloneRestaurant(2L, "Alpha Bistro", ApprovalStatus.APPROVED, true, true);
+        Restaurant inactiveRestaurant = cloneRestaurant(3L, "Zulu Cafe", ApprovalStatus.APPROVED, true, true);
+        inactiveRestaurant.setOwnerId(12L);
+
+        when(restaurantRepository.findByApprovalStatusAndIsApprovedTrue(ApprovalStatus.APPROVED))
+            .thenReturn(List.of(inactiveRestaurant, activeRestaurant));
+        when(authServiceClient.getUserSummary(eq("RESTAURANT_OWNER"), eq(12L)))
+            .thenReturn(new UserSummaryDto(
+                12L,
+                "Inactive Owner",
+                "inactive@test.com",
+                "8888888888",
+                "RESTAURANT_OWNER",
+                "INACTIVE",
+                false
+            ));
+
+        List<RestaurantResponse> responses = restaurantService.getApprovedRestaurants();
+
+        assertEquals(1, responses.size());
+        assertEquals("Alpha Bistro", responses.get(0).name());
+    }
+
+    @Test
     @DisplayName("Search Restaurants - Filters By Name City And Cuisine")
     void searchRestaurants_FiltersResults() {
 
@@ -213,17 +250,6 @@ class RestaurantServiceImplTest {
 
         assertEquals(1, responses.size());
         assertEquals("QuickBite Cafe", responses.get(0).name());
-
-        when(authServiceClient.getUserSummary(any(), anyLong()))
-                .thenReturn(new UserSummaryDto(
-                        11L,
-                        "Owner",
-                        "owner@test.com",
-                        "9999999999",
-                        "RESTAURANT_OWNER",
-                        "ACTIVE",
-                        true
-                ));
     }
 
     @Test
@@ -265,6 +291,21 @@ class RestaurantServiceImplTest {
 
         assertEquals(1, responses.size());
         assertEquals("Nearby Kitchen", responses.get(0).name());
+    }
+
+    @Test
+    @DisplayName("Find Nearby Restaurants - Filters Restaurant When Owner Lookup Fails")
+    void findNearbyRestaurants_FiltersUnavailableOwner() {
+        Restaurant nearby = cloneRestaurant(1L, "Nearby Kitchen", ApprovalStatus.APPROVED, true, true);
+
+        when(restaurantRepository.findByIsOpenTrueAndIsApprovedTrue())
+            .thenReturn(List.of(nearby));
+        when(authServiceClient.getUserSummary(eq("RESTAURANT_OWNER"), eq(11L)))
+            .thenThrow(new RuntimeException("auth down"));
+
+        List<RestaurantResponse> responses = restaurantService.findNearbyRestaurants(18.5204, 73.8567, 5.0);
+
+        assertTrue(responses.isEmpty());
     }
 
     @Test

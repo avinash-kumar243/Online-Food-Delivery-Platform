@@ -307,7 +307,10 @@ public class PaymentServiceImpl implements PaymentService {
 
     private Payment findByWebhookIds(String razorpayPaymentId, String razorpayOrderId) {
         if (razorpayPaymentId != null) {
-            return paymentRepository.findByRazorpayPaymentId(razorpayPaymentId).orElse(null);
+            Payment payment = paymentRepository.findByRazorpayPaymentId(razorpayPaymentId).orElse(null);
+            if (payment != null) {
+                return payment;
+            }
         }
         if (razorpayOrderId != null) {
             return paymentRepository.findByRazorpayOrderId(razorpayOrderId).orElse(null);

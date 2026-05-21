@@ -142,7 +142,7 @@ public class MenuServiceImpl implements MenuService {
     public RestaurantMenuResponse getMenuByRestaurant(Integer restaurantId) {
         log.debug("Loading menu for restaurant {} from database", restaurantId);
         List<MenuCategoryResponse> categories = categoryRepository.findByRestaurantIdOrderByDisplayOrderAscNameAsc(restaurantId).stream()
-            .map(category -> mapper.toResponse(category))
+            .map(mapper::toResponse)
             .sorted(Comparator.comparing(MenuCategoryResponse::displayOrder).thenComparing(MenuCategoryResponse::name))
             .toList();
 

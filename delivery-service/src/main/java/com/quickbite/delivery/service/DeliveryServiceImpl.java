@@ -252,6 +252,14 @@ public class DeliveryServiceImpl implements DeliveryService {
 		agent.setAvailable(true);
 		agent.setTotalDeliveries(agent.getTotalDeliveries() + 1);
 		DeliveryAgent savedAgent = deliveryRepository.save(agent);
+		eventPublisher.send("order.delivered", new DeliveryEventDTO(
+			completedOrderId,
+			null,
+			null,
+			savedAgent.getAgentId(),
+			"DELIVERED",
+			savedAgent.getCurrentLatitude() + "," + savedAgent.getCurrentLongitude()
+		));
 		return toResponse(savedAgent);
 	}
 

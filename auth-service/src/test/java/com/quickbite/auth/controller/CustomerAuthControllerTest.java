@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import com.quickbite.auth.service.AdminAuthService;
 import com.quickbite.auth.service.CustomUserDetailsService;
 import com.quickbite.auth.service.JwtService;
+import com.quickbite.auth.service.TokenBlacklistService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,7 @@ class CustomerAuthControllerTest {
 
     @MockBean private JwtService jwtService;
     @MockBean private CustomUserDetailsService customUserDetailsService;
+    @MockBean private TokenBlacklistService tokenBlacklistService;
     @MockBean private AdminAuthService adminAuthService;
 
     @Test
