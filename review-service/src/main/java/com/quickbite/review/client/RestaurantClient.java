@@ -11,5 +11,5 @@ import com.quickbite.review.client.dto.RestaurantRatingRequestDto;
 public interface RestaurantClient {
 
     @PatchMapping("/{restaurantId}/rating")
-    void updateAverageRating(@PathVariable("restaurantId") Long restaurantId, @RequestBody RestaurantRatingRequestDto request);
+    void updateAverageRating(@PathVariable Long restaurantId, @RequestBody RestaurantRatingRequestDto request);
 }

@@ -13,8 +13,8 @@ import com.quickbite.payment.dto.OrderPaymentStatusRequest;
 public interface OrderServiceClient {
 
     @GetMapping("/{orderId}")
-    OrderSnapshotDto getOrderById(@PathVariable("orderId") Long orderId);
+    OrderSnapshotDto getOrderById(@PathVariable Long orderId);
 
     @PutMapping("/{orderId}/payment-status")
-    void updateOrderPaymentStatus(@PathVariable("orderId") Long orderId, @RequestBody OrderPaymentStatusRequest request);
+    void updateOrderPaymentStatus(@PathVariable Long orderId, @RequestBody OrderPaymentStatusRequest request);
 }

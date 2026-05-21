@@ -12,5 +12,5 @@ import com.quickbite.delivery.dto.OrderSnapshotDto;
 public interface OrderServiceClient {
 
     @PutMapping("/{orderId}/assign-agent")
-    OrderSnapshotDto assignAgent(@PathVariable("orderId") Long orderId, @RequestBody AssignOrderRequestDto request);
+    OrderSnapshotDto assignAgent(@PathVariable Long orderId, @RequestBody AssignOrderRequestDto request);
 }

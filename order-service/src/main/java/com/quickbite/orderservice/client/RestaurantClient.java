@@ -10,5 +10,5 @@ import com.quickbite.orderservice.client.dto.RestaurantRealtimeDto;
 public interface RestaurantClient {
 
     @GetMapping("/{restaurantId}")
-    RestaurantRealtimeDto getRestaurantById(@PathVariable("restaurantId") Long restaurantId);
+    RestaurantRealtimeDto getRestaurantById(@PathVariable Long restaurantId);
 }

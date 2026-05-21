@@ -8,5 +8,5 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface RestaurantServiceClient {
 
     @DeleteMapping("/owner/{ownerId}")
-    void deleteRestaurantsByOwnerId(@PathVariable("ownerId") Long ownerId);
+    void deleteRestaurantsByOwnerId(@PathVariable Long ownerId);
 }

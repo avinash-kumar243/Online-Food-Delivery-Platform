@@ -15,5 +15,5 @@ public interface DeliveryServiceClient {
     List<DeliveryAgentResponseDto> getAvailableAgents();
 
     @GetMapping("/{agentId}")
-    DeliveryAgentResponseDto getAgentById(@PathVariable("agentId") Long agentId);
+    DeliveryAgentResponseDto getAgentById(@PathVariable Long agentId);
 }

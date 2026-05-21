@@ -10,5 +10,5 @@ import com.quickbite.orderservice.client.dto.DeliveryAgentRealtimeDto;
 public interface DeliveryAgentClient {
 
     @GetMapping("/{agentId}")
-    DeliveryAgentRealtimeDto getAgentById(@PathVariable("agentId") Long agentId);
+    DeliveryAgentRealtimeDto getAgentById(@PathVariable Long agentId);
 }

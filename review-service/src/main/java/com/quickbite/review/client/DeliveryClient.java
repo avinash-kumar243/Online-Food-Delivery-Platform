@@ -11,5 +11,5 @@ import com.quickbite.review.client.dto.DeliveryRatingRequestDto;
 public interface DeliveryClient {
 
     @PatchMapping("/{agentId}/rating")
-    void updateAverageRating(@PathVariable("agentId") Long agentId, @RequestBody DeliveryRatingRequestDto request);
+    void updateAverageRating(@PathVariable Long agentId, @RequestBody DeliveryRatingRequestDto request);
 }

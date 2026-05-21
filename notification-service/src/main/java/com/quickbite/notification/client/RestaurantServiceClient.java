@@ -10,5 +10,5 @@ import com.quickbite.notification.client.dto.RestaurantResponseDto;
 public interface RestaurantServiceClient {
 
     @GetMapping("/{restaurantId}")
-    RestaurantResponseDto getRestaurantById(@PathVariable("restaurantId") Long restaurantId);
+    RestaurantResponseDto getRestaurantById(@PathVariable Long restaurantId);
 }

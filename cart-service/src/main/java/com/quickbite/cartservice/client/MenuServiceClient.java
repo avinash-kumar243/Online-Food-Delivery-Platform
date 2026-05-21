@@ -10,6 +10,5 @@ import com.quickbite.cartservice.dto.MenuItemSnapshotDto;
 public interface MenuServiceClient {
 
     @GetMapping("/item/{itemId}")
-    MenuItemSnapshotDto getMenuItem(@PathVariable("itemId") Integer itemId);
+    MenuItemSnapshotDto getMenuItem(@PathVariable Integer itemId);
 }
-

@@ -12,5 +12,5 @@ import com.quickbite.review.client.dto.OrderDto;
 public interface OrderClient {
 
     @GetMapping("/{orderId}")
-    OrderDto getOrderById(@PathVariable("orderId") Long orderId);
+    OrderDto getOrderById(@PathVariable Long orderId);
 }

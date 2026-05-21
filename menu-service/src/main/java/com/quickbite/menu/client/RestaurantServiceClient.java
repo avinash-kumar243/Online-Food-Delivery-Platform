@@ -10,5 +10,5 @@ import com.quickbite.menu.dto.RestaurantSnapshotDto;
 public interface RestaurantServiceClient {
 
     @GetMapping("/{restaurantId}")
-    RestaurantSnapshotDto getRestaurant(@PathVariable("restaurantId") Long restaurantId);
+    RestaurantSnapshotDto getRestaurant(@PathVariable Long restaurantId);
 }
