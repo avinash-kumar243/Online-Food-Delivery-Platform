@@ -28,12 +28,12 @@ public class ReviewLifecycleEventListener {
 
     @Transactional
     @RabbitListener(
-        queues = QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE,
+        queues = QuickbiteOrderMessagingConstants.ORDER_COMPLETED_QUEUE,
         containerFactory = "manualAckRabbitListenerContainerFactory"
     )
-    public void handleOrderDelivered(OrderEventDTO event, Message message, Channel channel) throws IOException {
+    public void handleOrderCompleted(OrderEventDTO event, Message message, Channel channel) throws IOException {
         try {
-            log.info("Received order delivered event for orderId={}", event.orderId());
+            log.info("Received order completed event for orderId={}", event.orderId());
             OrderDto order = resolveOrder(event);
             if (order != null && order.getCustomerId() != null && order.getRestaurantId() != null && order.getAgentId() != null) {
                 ReviewEligibility persistedEligibility = reviewEligibilityRepository.findByOrderId(event.orderId())
@@ -54,6 +54,20 @@ public class ReviewLifecycleEventListener {
             channel.basicNack(message.getMessageProperties().getDeliveryTag(), false, false);
             throw exception;
         }
+    }
+
+    // Legacy compatibility for existing tests and older publishers.
+    public void handleOrderDelivered(OrderEventDTO event, Message message, Channel channel) throws IOException {
+        handleOrderCompleted(event, message, channel);
+    }
+
+    @Transactional
+    @RabbitListener(
+        queues = QuickbiteOrderMessagingConstants.DELIVERY_COMPLETED_QUEUE,
+        containerFactory = "manualAckRabbitListenerContainerFactory"
+    )
+    public void handleDeliveryCompleted(OrderEventDTO event, Message message, Channel channel) throws IOException {
+        handleOrderCompleted(event, message, channel);
     }
 
     private OrderDto resolveOrder(OrderEventDTO event) {
