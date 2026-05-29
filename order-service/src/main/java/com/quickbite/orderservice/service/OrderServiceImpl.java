@@ -13,11 +13,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import com.quickbite.orderservice.client.CartClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.quickbite.orderservice.client.DeliveryAgentClient;
+import com.quickbite.orderservice.client.MenuClient;
+import com.quickbite.orderservice.client.dto.CartItemSnapshotDto;
+import com.quickbite.orderservice.client.dto.CartSnapshotDto;
 import com.quickbite.orderservice.dto.OrderItemResponse;
 import com.quickbite.orderservice.dto.OrderDeliveryPartnerInfo;
 import com.quickbite.orderservice.dto.OrderRestaurantInfo;
@@ -34,14 +40,12 @@ import com.quickbite.orderservice.exception.BadRequestException;
 import com.quickbite.orderservice.exception.ConflictException;
 import com.quickbite.orderservice.exception.OrderNotFoundException;
 import com.quickbite.orderservice.messaging.GenericEventPublisher;
+import com.quickbite.orderservice.messaging.QuickbiteOrderMessagingConstants;
 import com.quickbite.orderservice.messaging.dto.OrderEventDTO;
 import com.quickbite.orderservice.realtime.RealtimeNotifier;
 import com.quickbite.orderservice.repository.OrderRepository;
 
-import lombok.RequiredArgsConstructor;
-
 @Service
-@RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
@@ -61,6 +65,33 @@ public class OrderServiceImpl implements OrderService {
     private final RealtimeNotifier realtimeNotifier;
     private final RestaurantClient restaurantClient;
     private final DeliveryAgentClient deliveryAgentClient;
+    private final CartClient cartClient;
+    private final MenuClient menuClient;
+
+    @Autowired
+    public OrderServiceImpl(OrderRepository orderRepository,
+                            GenericEventPublisher eventPublisher,
+                            RealtimeNotifier realtimeNotifier,
+                            RestaurantClient restaurantClient,
+                            DeliveryAgentClient deliveryAgentClient,
+                            CartClient cartClient,
+                            MenuClient menuClient) {
+        this.orderRepository = orderRepository;
+        this.eventPublisher = eventPublisher;
+        this.realtimeNotifier = realtimeNotifier;
+        this.restaurantClient = restaurantClient;
+        this.deliveryAgentClient = deliveryAgentClient;
+        this.cartClient = cartClient;
+        this.menuClient = menuClient;
+    }
+
+    public OrderServiceImpl(OrderRepository orderRepository,
+                            GenericEventPublisher eventPublisher,
+                            RealtimeNotifier realtimeNotifier,
+                            RestaurantClient restaurantClient,
+                            DeliveryAgentClient deliveryAgentClient) {
+        this(orderRepository, eventPublisher, realtimeNotifier, restaurantClient, deliveryAgentClient, null, null);
+    }
 
     @Override
     @Transactional
@@ -76,6 +107,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         ensureRestaurantAcceptingOrders(request.restaurantId());
+        validateCartAndMenuState(request);
 
         BigDecimal totalAmount = calculateTotal(request.items());
         BigDecimal taxAmount = calculateTax(totalAmount);
@@ -109,7 +141,8 @@ public class OrderServiceImpl implements OrderService {
             .forEach(order::addItem);
 
         Order savedOrder = orderRepository.save(order);
-        eventPublisher.send("order.created", toOrderEvent(savedOrder));
+        eventPublisher.send(QuickbiteOrderMessagingConstants.ORDER_CREATED_ROUTING_KEY, toOrderEvent(savedOrder));
+        clearCustomerCartSafely(savedOrder.getCustomerId());
         realtimeNotifier.publishOrderCreated(savedOrder);
         return toResponse(savedOrder);
     }
@@ -193,6 +226,9 @@ public class OrderServiceImpl implements OrderService {
         String routingKey = routingKeyForStatus(status);
         if (routingKey != null) {
             eventPublisher.send(routingKey, toOrderEvent(savedOrder));
+            if (status == OrderStatus.DELIVERED) {
+                eventPublisher.send("order.delivered", toOrderEvent(savedOrder));
+            }
         }
         realtimeNotifier.publishOrderUpdated(savedOrder);
 
@@ -244,7 +280,7 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setOrderStatus(OrderStatus.CANCELLED);
         Order savedOrder = orderRepository.save(order);
-        eventPublisher.send("order.cancelled", toOrderEvent(savedOrder));
+        eventPublisher.send(QuickbiteOrderMessagingConstants.ORDER_CANCELLED_ROUTING_KEY, toOrderEvent(savedOrder));
         realtimeNotifier.publishOrderUpdated(savedOrder);
         return toResponse(savedOrder);
     }
@@ -448,6 +484,7 @@ public class OrderServiceImpl implements OrderService {
             order.getOrderId(),
             order.getCustomerId(),
             order.getRestaurantId(),
+            resolveRestaurantOwnerId(order.getRestaurantId()),
             order.getDeliveryAgentId(),
             order.getFinalAmount(),
             LocalDateTime.now()
@@ -521,14 +558,99 @@ public class OrderServiceImpl implements OrderService {
         return true;
     }
 
+    private void validateCartAndMenuState(PlaceOrderRequest request) {
+        validateAgainstCart(request);
+        validateAgainstCurrentMenu(request);
+    }
+
+    private void validateAgainstCart(PlaceOrderRequest request) {
+        if (cartClient == null) {
+            return;
+        }
+        CartSnapshotDto cart = null;
+        try {
+            cart = cartClient.getCartByCustomerId(request.customerId());
+        } catch (RuntimeException ignored) {
+            return;
+        }
+
+        if (cart == null || cart.items() == null || cart.items().isEmpty()) {
+            return;
+        }
+
+        if (!Objects.equals(cart.restaurantId(), request.restaurantId())) {
+            throw new BadRequestException("Cart restaurant does not match the restaurant selected for checkout");
+        }
+
+        List<CartItemSnapshotDto> cartItems = cart.items();
+        if (cartItems.size() != request.items().size()) {
+            throw new BadRequestException("Checkout items do not match the current cart state");
+        }
+
+        Map<String, CartItemSnapshotDto> cartBySignature = cartItems.stream()
+            .collect(Collectors.toMap(this::cartSignature, item -> item, (left, right) -> left));
+
+        for (PlaceOrderItemRequest requestItem : request.items()) {
+            CartItemSnapshotDto cartItem = cartBySignature.get(requestSignature(requestItem));
+            if (cartItem == null || !Objects.equals(cartItem.quantity(), requestItem.quantity())) {
+                throw new BadRequestException("Checkout items do not match the current cart state");
+            }
+        }
+    }
+
+    private void validateAgainstCurrentMenu(PlaceOrderRequest request) {
+        if (menuClient == null) {
+            return;
+        }
+        for (PlaceOrderItemRequest requestItem : request.items()) {
+            var menuItem = menuClient.getItemById(requestItem.menuItemId().intValue());
+            if (menuItem == null || !Boolean.TRUE.equals(menuItem.isAvailable())) {
+                throw new BadRequestException("One or more menu items are currently unavailable");
+            }
+            if (!Objects.equals(menuItem.restaurantId().longValue(), request.restaurantId())) {
+                throw new BadRequestException("One or more menu items do not belong to the selected restaurant");
+            }
+
+            BigDecimal currentPrice = resolveMenuPrice(menuItem);
+            if (currentPrice.compareTo(normalizeMoney(requestItem.price())) != 0) {
+                throw new BadRequestException("One or more menu item prices have changed. Please review your cart and try again");
+            }
+        }
+    }
+
+    private BigDecimal resolveMenuPrice(com.quickbite.orderservice.client.dto.MenuItemSnapshotDto menuItem) {
+        Double discountedPrice = menuItem.discountedPrice();
+        double resolvedPrice = discountedPrice != null && discountedPrice > 0 ? discountedPrice : menuItem.price();
+        return normalizeMoney(BigDecimal.valueOf(resolvedPrice));
+    }
+
+    private String cartSignature(CartItemSnapshotDto item) {
+        return item.menuItemId() + "|" + normalizeText(item.customization());
+    }
+
+    private String requestSignature(PlaceOrderItemRequest item) {
+        return item.menuItemId() + "|" + normalizeText(item.customization());
+    }
+
+    private void clearCustomerCartSafely(Long customerId) {
+        if (cartClient == null) {
+            return;
+        }
+        try {
+            cartClient.clearCart(customerId);
+        } catch (RuntimeException ignored) {
+            // Preserve order placement success even if cart cleanup is temporarily unavailable.
+        }
+    }
+
     private String routingKeyForStatus(OrderStatus status) {
         return switch (status) {
-            case CONFIRMED -> "restaurant.accepted";
+            case CONFIRMED -> QuickbiteOrderMessagingConstants.ORDER_CONFIRMED_ROUTING_KEY;
             case PREPARING -> "order.preparing";
             case READY_FOR_PICKUP -> "order.ready_for_pickup";
             case PICKED_UP -> "order.pickedup";
             case OUT_FOR_DELIVERY -> "order.out_for_delivery";
-            case DELIVERED -> "order.delivered";
+            case DELIVERED -> QuickbiteOrderMessagingConstants.ORDER_COMPLETED_ROUTING_KEY;
             default -> null;
         };
     }
@@ -537,6 +659,15 @@ public class OrderServiceImpl implements OrderService {
         RestaurantRealtimeDto restaurant = restaurantClient.getRestaurantById(restaurantId);
         if (restaurant == null || !Boolean.TRUE.equals(restaurant.isApproved()) || !Boolean.TRUE.equals(restaurant.isOpen())) {
             throw new BadRequestException("This restaurant is currently closed and not accepting orders");
+        }
+    }
+
+    private Long resolveRestaurantOwnerId(Long restaurantId) {
+        try {
+            RestaurantRealtimeDto restaurant = restaurantClient.getRestaurantById(restaurantId);
+            return restaurant == null ? null : restaurant.ownerId();
+        } catch (RuntimeException exception) {
+            return null;
         }
     }
 
