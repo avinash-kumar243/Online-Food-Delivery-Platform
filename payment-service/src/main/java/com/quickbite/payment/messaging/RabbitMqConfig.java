@@ -39,18 +39,12 @@ public class RabbitMqConfig {
     @Bean
     Declarables paymentDeclarables(TopicExchange quickbiteOrderExchange, TopicExchange quickbiteOrderDeadLetterExchange) {
         Queue orderCreatedQueue = durableQueue(QuickbiteOrderMessagingConstants.ORDER_CREATED_QUEUE);
-        Queue orderDeliveredQueue = durableQueue(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE);
         Queue orderCreatedDlq = deadLetterQueue(QuickbiteOrderMessagingConstants.ORDER_CREATED_QUEUE);
-        Queue orderDeliveredDlq = deadLetterQueue(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE);
         return new Declarables(
             orderCreatedQueue,
-            orderDeliveredQueue,
             orderCreatedDlq,
-            orderDeliveredDlq,
             BindingBuilder.bind(orderCreatedQueue).to(quickbiteOrderExchange).with("order.created"),
-            BindingBuilder.bind(orderDeliveredQueue).to(quickbiteOrderExchange).with("order.delivered"),
-            deadLetterBinding(orderCreatedDlq, quickbiteOrderDeadLetterExchange),
-            deadLetterBinding(orderDeliveredDlq, quickbiteOrderDeadLetterExchange)
+            deadLetterBinding(orderCreatedDlq, quickbiteOrderDeadLetterExchange)
         );
     }
 
