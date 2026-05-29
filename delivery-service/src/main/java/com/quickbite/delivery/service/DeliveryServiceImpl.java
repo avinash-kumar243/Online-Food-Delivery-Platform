@@ -17,6 +17,7 @@ import com.quickbite.delivery.dto.LocationUpdateResponse;
 import com.quickbite.delivery.dto.NearbyAgentResponse;
 import com.quickbite.delivery.dto.OrderAssignmentRequest;
 import com.quickbite.delivery.dto.RegisterDeliveryAgentRequest;
+import com.quickbite.delivery.dto.UpdateOrderStatusRequest;
 import com.quickbite.delivery.dto.UserSummaryDto;
 import com.quickbite.delivery.entity.DeliveryAgent;
 import com.quickbite.delivery.entity.VerificationStatus;
@@ -24,6 +25,7 @@ import com.quickbite.delivery.exception.BadRequestException;
 import com.quickbite.delivery.exception.ConflictException;
 import com.quickbite.delivery.exception.ResourceNotFoundException;
 import com.quickbite.delivery.messaging.GenericEventPublisher;
+import com.quickbite.delivery.messaging.QuickbiteOrderMessagingConstants;
 import com.quickbite.delivery.messaging.dto.DeliveryEventDTO;
 import com.quickbite.delivery.repository.DeliveryRepository;
 
@@ -198,11 +200,13 @@ public class DeliveryServiceImpl implements DeliveryService {
 		agent.setAvailable(false);
 		agent.setActiveOrderId(request.orderId());
 		DeliveryAgent savedAgent = deliveryRepository.save(agent);
-		eventPublisher.send("delivery.assigned", new DeliveryEventDTO(
+		eventPublisher.send(QuickbiteOrderMessagingConstants.DELIVERY_ASSIGNED_ROUTING_KEY, new DeliveryEventDTO(
 			request.orderId(),
 			null,
 			null,
+			null,
 			savedAgent.getAgentId(),
+			savedAgent.getUserId(),
 			"ASSIGNED",
 			savedAgent.getCurrentLatitude() + "," + savedAgent.getCurrentLongitude()
 		));
@@ -228,14 +232,18 @@ public class DeliveryServiceImpl implements DeliveryService {
 		agent.setActiveOrderId(orderId);
 		DeliveryAgent savedAgent = deliveryRepository.save(agent);
 
-		eventPublisher.send("delivery.assigned", new DeliveryEventDTO(
+		DeliveryEventDTO acceptedEvent = new DeliveryEventDTO(
 			orderId,
 			assignedOrder.customerId(),
 			assignedOrder.restaurantId(),
+			null,
 			agentId,
+			savedAgent.getUserId(),
 			"ACCEPTED",
 			savedAgent.getCurrentLatitude() + "," + savedAgent.getCurrentLongitude()
-		));
+		);
+		eventPublisher.send(QuickbiteOrderMessagingConstants.DELIVERY_PICKED_UP_ROUTING_KEY, acceptedEvent);
+		eventPublisher.send(QuickbiteOrderMessagingConstants.DELIVERY_ASSIGNED_ROUTING_KEY, acceptedEvent);
 		return toResponse(savedAgent);
 	}
 
@@ -252,14 +260,19 @@ public class DeliveryServiceImpl implements DeliveryService {
 		agent.setAvailable(true);
 		agent.setTotalDeliveries(agent.getTotalDeliveries() + 1);
 		DeliveryAgent savedAgent = deliveryRepository.save(agent);
-		eventPublisher.send("order.delivered", new DeliveryEventDTO(
+		orderServiceClient.updateOrderStatus(completedOrderId, new UpdateOrderStatusRequest("DELIVERED"));
+		DeliveryEventDTO completedEvent = new DeliveryEventDTO(
 			completedOrderId,
 			null,
 			null,
+			null,
 			savedAgent.getAgentId(),
+			savedAgent.getUserId(),
 			"DELIVERED",
 			savedAgent.getCurrentLatitude() + "," + savedAgent.getCurrentLongitude()
-		));
+		);
+		eventPublisher.send(QuickbiteOrderMessagingConstants.DELIVERY_COMPLETED_ROUTING_KEY, completedEvent);
+		eventPublisher.send("order.delivered", completedEvent);
 		return toResponse(savedAgent);
 	}
 
