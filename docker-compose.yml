@@ -139,10 +139,6 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI}
-      RABBITMQ_HOST: quickbite-rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
@@ -158,8 +154,6 @@ services:
       - "8081:8081"
     depends_on:
       mysql:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
       eureka-server:
         condition: service_started
@@ -209,7 +203,7 @@ services:
       context: ./menu-service
     environment:
       SERVER_PORT: 8083
-      SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/menudb
+      SPRING_DATASOURCE_URL: jdbc:mysql://quickbite-mysql:3306/menudb
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
