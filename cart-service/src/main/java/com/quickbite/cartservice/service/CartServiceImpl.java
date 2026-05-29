@@ -4,15 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.quickbite.cartservice.client.MenuServiceClient;
+import com.quickbite.cartservice.client.RestaurantServiceClient;
 import com.quickbite.cartservice.dto.AddCartItemRequest;
 import com.quickbite.cartservice.dto.CartItemResponse;
 import com.quickbite.cartservice.dto.CartResponse;
 import com.quickbite.cartservice.dto.MenuItemSnapshotDto;
+import com.quickbite.cartservice.dto.RestaurantSnapshotDto;
 import com.quickbite.cartservice.dto.UpdateCartItemQuantityRequest;
 import com.quickbite.cartservice.entity.Cart;
 import com.quickbite.cartservice.entity.CartItem;
@@ -21,15 +24,30 @@ import com.quickbite.cartservice.exception.CartItemNotFoundException;
 import com.quickbite.cartservice.repository.CartItemRepository;
 import com.quickbite.cartservice.repository.CartRepository;
 
-import lombok.RequiredArgsConstructor;
-
 @Service
-@RequiredArgsConstructor
 public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final MenuServiceClient menuServiceClient;
+    private final RestaurantServiceClient restaurantServiceClient;
+
+    @Autowired
+    public CartServiceImpl(CartRepository cartRepository,
+                           CartItemRepository cartItemRepository,
+                           MenuServiceClient menuServiceClient,
+                           RestaurantServiceClient restaurantServiceClient) {
+        this.cartRepository = cartRepository;
+        this.cartItemRepository = cartItemRepository;
+        this.menuServiceClient = menuServiceClient;
+        this.restaurantServiceClient = restaurantServiceClient;
+    }
+
+    public CartServiceImpl(CartRepository cartRepository,
+                           CartItemRepository cartItemRepository,
+                           MenuServiceClient menuServiceClient) {
+        this(cartRepository, cartItemRepository, menuServiceClient, null);
+    }
 
     @Override
     @Transactional
@@ -48,6 +66,7 @@ public class CartServiceImpl implements CartService {
         }
 
         Long restaurantId = menuItem.restaurantId().longValue();
+        ensureRestaurantOpen(restaurantId);
         Cart cart = cartRepository.findByCustomerId(request.customerId())
             .orElseGet(() -> createCart(request.customerId()));
 
@@ -253,6 +272,16 @@ public class CartServiceImpl implements CartService {
         return menuItem.discountedPrice() != null && menuItem.discountedPrice() > 0
             ? menuItem.discountedPrice()
             : menuItem.price();
+    }
+
+    private void ensureRestaurantOpen(Long restaurantId) {
+        if (restaurantServiceClient == null) {
+            return;
+        }
+        RestaurantSnapshotDto restaurant = restaurantServiceClient.getRestaurantById(restaurantId);
+        if (restaurant == null || !Boolean.TRUE.equals(restaurant.isApproved()) || !Boolean.TRUE.equals(restaurant.isOpen())) {
+            throw new BadRequestException("The selected restaurant is currently unavailable");
+        }
     }
 
     private String resolveName(AddCartItemRequest request, MenuItemSnapshotDto menuItem) {
