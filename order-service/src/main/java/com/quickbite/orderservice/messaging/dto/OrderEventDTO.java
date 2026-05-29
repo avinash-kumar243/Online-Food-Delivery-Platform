@@ -7,6 +7,7 @@ public record OrderEventDTO(
     Long orderId,
     Long customerId,
     Long restaurantId,
+    Long restaurantOwnerId,
     Long deliveryAgentId,
     BigDecimal totalAmount,
     LocalDateTime timestamp
