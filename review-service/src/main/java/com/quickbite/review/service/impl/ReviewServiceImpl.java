@@ -17,6 +17,7 @@ import com.quickbite.review.entity.ReviewEligibility;
 import com.quickbite.review.enums.ReviewType;
 import com.quickbite.review.exception.ReviewNotFoundException;
 import com.quickbite.review.messaging.GenericEventPublisher;
+import com.quickbite.review.messaging.QuickbiteOrderMessagingConstants;
 import com.quickbite.review.messaging.dto.ReviewNotificationEventDTO;
 import com.quickbite.review.repository.ReviewRepository;
 import com.quickbite.review.service.ReviewAuthorizationValidator;
@@ -163,11 +164,8 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private void publishReviewNotificationSafely(Review review) {
-        String routingKey = review.getReviewType() == ReviewType.FOOD
-            ? "review.food_submitted"
-            : "review.delivery_submitted";
         try {
-            eventPublisher.send(routingKey, new ReviewNotificationEventDTO(
+            ReviewNotificationEventDTO payload = new ReviewNotificationEventDTO(
                 review.getReviewId(),
                 review.getOrderId(),
                 review.getCustomerId(),
@@ -176,10 +174,12 @@ public class ReviewServiceImpl implements ReviewService {
                 review.getReviewType().name(),
                 review.getRating(),
                 review.getComment()
-            ));
-            log.info("Published review notification. reviewId={} routingKey={}", review.getReviewId(), routingKey);
+            );
+            eventPublisher.send(legacyRoutingKey(review.getReviewType()), payload);
+            eventPublisher.send(QuickbiteOrderMessagingConstants.REVIEW_CREATED_ROUTING_KEY, payload);
+            log.info("Published review event. reviewId={}", review.getReviewId());
         } catch (RuntimeException ex) {
-            log.error("Failed to publish review notification for reviewId={} routingKey={}", review.getReviewId(), routingKey, ex);
+            log.error("Failed to publish review event for reviewId={}", review.getReviewId(), ex);
         }
     }
 
@@ -212,5 +212,9 @@ public class ReviewServiceImpl implements ReviewService {
             review.getReviewDate(),
             review.isVerified()
         );
+    }
+
+    private String legacyRoutingKey(ReviewType reviewType) {
+        return reviewType == ReviewType.FOOD ? "review.food_submitted" : "review.delivery_submitted";
     }
 }
