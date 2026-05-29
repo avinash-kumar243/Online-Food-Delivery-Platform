@@ -38,24 +38,15 @@ public class RabbitMqConfig {
 
     @Bean
     Declarables deliveryDeclarables(TopicExchange quickbiteOrderExchange, TopicExchange quickbiteOrderDeadLetterExchange) {
-        Queue restaurantAcceptedQueue = QueueBuilder.durable(QuickbiteOrderMessagingConstants.RESTAURANT_ACCEPTED_QUEUE)
-            .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.RESTAURANT_ACCEPTED_QUEUE + ".dlq"))
+        Queue orderCreatedQueue = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_CREATED_QUEUE)
+            .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.ORDER_CREATED_QUEUE + ".dlq"))
             .build();
-        Queue restaurantAcceptedDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.RESTAURANT_ACCEPTED_QUEUE + ".dlq").build();
-        Queue orderDeliveredQueue = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE)
-            .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq"))
-            .build();
-        Queue orderDeliveredDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq").build();
+        Queue orderCreatedDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_CREATED_QUEUE + ".dlq").build();
         return new Declarables(
-            restaurantAcceptedQueue,
-            restaurantAcceptedDlq,
-            orderDeliveredQueue,
-            orderDeliveredDlq,
-            BindingBuilder.bind(restaurantAcceptedQueue).to(quickbiteOrderExchange).with("restaurant.accepted"),
-            BindingBuilder.bind(orderDeliveredQueue).to(quickbiteOrderExchange).with("order.delivered"),
-            BindingBuilder.bind(restaurantAcceptedDlq).to(quickbiteOrderDeadLetterExchange).with(restaurantAcceptedDlq.getName())
-            ,
-            BindingBuilder.bind(orderDeliveredDlq).to(quickbiteOrderDeadLetterExchange).with(orderDeliveredDlq.getName())
+            orderCreatedQueue,
+            orderCreatedDlq,
+            BindingBuilder.bind(orderCreatedQueue).to(quickbiteOrderExchange).with("order.created"),
+            BindingBuilder.bind(orderCreatedDlq).to(quickbiteOrderDeadLetterExchange).with(orderCreatedDlq.getName())
         );
     }
 
