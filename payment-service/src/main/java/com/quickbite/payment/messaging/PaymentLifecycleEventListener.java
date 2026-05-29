@@ -45,11 +45,7 @@ public class PaymentLifecycleEventListener {
         }
     }
 
-    @Transactional
-    @RabbitListener(
-        queues = QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE,
-        containerFactory = "manualAckRabbitListenerContainerFactory"
-    )
+    // Legacy compatibility for existing tests and older order completion flows.
     public void handleOrderDelivered(OrderEventDTO event, Message message, Channel channel) throws IOException {
         try {
             paymentRepository.findByOrderId(event.orderId()).ifPresent(payment -> {
