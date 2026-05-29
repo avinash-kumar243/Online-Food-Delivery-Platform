@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -17,19 +18,37 @@ import com.quickbite.restaurant.entity.ApprovalStatus;
 import com.quickbite.restaurant.entity.Restaurant;
 import com.quickbite.restaurant.exception.BadRequestException;
 import com.quickbite.restaurant.exception.RestaurantNotFoundException;
+import com.quickbite.restaurant.messaging.GenericEventPublisher;
+import com.quickbite.restaurant.messaging.QuickbiteOrderMessagingConstants;
+import com.quickbite.restaurant.messaging.dto.RestaurantEventDTO;
 import com.quickbite.restaurant.repository.RestaurantRepository;
 import com.quickbite.restaurant.util.RestaurantMapper;
 
-import lombok.RequiredArgsConstructor;
-
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class RestaurantServiceImpl implements RestaurantService {
 
     private final RestaurantRepository restaurantRepository;
     private final RestaurantMapper restaurantMapper;
     private final AuthServiceClient authServiceClient;
+    private final GenericEventPublisher eventPublisher;
+
+    @Autowired
+    public RestaurantServiceImpl(RestaurantRepository restaurantRepository,
+                                 RestaurantMapper restaurantMapper,
+                                 AuthServiceClient authServiceClient,
+                                 GenericEventPublisher eventPublisher) {
+        this.restaurantRepository = restaurantRepository;
+        this.restaurantMapper = restaurantMapper;
+        this.authServiceClient = authServiceClient;
+        this.eventPublisher = eventPublisher;
+    }
+
+    public RestaurantServiceImpl(RestaurantRepository restaurantRepository,
+                                 RestaurantMapper restaurantMapper,
+                                 AuthServiceClient authServiceClient) {
+        this(restaurantRepository, restaurantMapper, authServiceClient, null);
+    }
 
     @Override
     @Transactional
@@ -203,6 +222,7 @@ public class RestaurantServiceImpl implements RestaurantService {
                 approvedRestaurant.getRestaurantId(),
                 approvedRestaurant.getOwnerId(),
                 adminId);
+        publishEvent(QuickbiteOrderMessagingConstants.RESTAURANT_APPROVED_ROUTING_KEY, approvedRestaurant, null);
 
         return restaurantMapper.toResponse(approvedRestaurant);
     }
@@ -225,6 +245,7 @@ public class RestaurantServiceImpl implements RestaurantService {
                 rejectedRestaurant.getRestaurantId(),
                 rejectedRestaurant.getOwnerId(),
                 adminId);
+        publishEvent(QuickbiteOrderMessagingConstants.RESTAURANT_REJECTED_ROUTING_KEY, rejectedRestaurant, feedback);
 
         return restaurantMapper.toResponse(rejectedRestaurant);
     }
@@ -243,6 +264,7 @@ public class RestaurantServiceImpl implements RestaurantService {
                 updatedRestaurant.getRestaurantId(),
                 previousStatus,
                 updatedRestaurant.getIsOpen());
+        publishEvent(QuickbiteOrderMessagingConstants.RESTAURANT_STATUS_CHANGED_ROUTING_KEY, updatedRestaurant, null);
 
         return restaurantMapper.toResponse(updatedRestaurant);
     }
@@ -281,6 +303,7 @@ public class RestaurantServiceImpl implements RestaurantService {
                 restaurant.getRestaurantId(),
                 restaurant.getOwnerId(),
                 restaurant.getName());
+        publishEvent(QuickbiteOrderMessagingConstants.RESTAURANT_DELETED_ROUTING_KEY, restaurant, null);
     }
 
     @Override
@@ -351,5 +374,20 @@ public class RestaurantServiceImpl implements RestaurantService {
     }
 
     private record RestaurantDistance(Restaurant restaurant, double distance) {
+    }
+
+    private void publishEvent(String routingKey, Restaurant restaurant, String reason) {
+        if (eventPublisher == null) {
+            return;
+        }
+        eventPublisher.send(routingKey, new RestaurantEventDTO(
+            restaurant.getRestaurantId(),
+            restaurant.getOwnerId(),
+            restaurant.getName(),
+            restaurant.getIsOpen(),
+            restaurant.getIsApproved(),
+            restaurant.getApprovalStatus() == null ? null : restaurant.getApprovalStatus().name(),
+            reason
+        ));
     }
 }
