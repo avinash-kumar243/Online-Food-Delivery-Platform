@@ -1,0 +1,11 @@
+spring:
+  profiles:
+    active: test
+
+eureka:
+  client:
+    enabled: false
+
+  cloud:
+    discovery:
+      enabled: false

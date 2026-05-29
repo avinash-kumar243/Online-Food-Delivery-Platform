@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: admin-server
+
+server:
+  port: ${PORT:9090} 
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    # Admin server should read services from Eureka
+    fetch-registry: true
+
+    # Admin server should not register itself
+    register-with-eureka: false
+       
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

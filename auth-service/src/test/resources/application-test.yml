@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:authservice;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    # In Spring Boot 3, use 'properties' to pass direct hibernate configs
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect # Use MySQL dialect if H2 is in MySQL mode
+        format_sql: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+jwt:
+  secret: 4z9v8w3b5n7m2p6q8r0t1y3u2i7o9p0a2s4d6f8d0h2j4k6l8z0x2c4v6b8n0m5Q
+  expiration-ms: 3600000
+
+quickbite:
+  admin:
+    bootstrap:
+      enabled: false
