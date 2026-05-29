@@ -34,10 +34,10 @@ public class JwtService {  // JWT Token related operations
 
     public String generateToken(String email, String role, Long userId) {
         Map<String, Object> claims = new HashMap<>();
+
         if (role != null && !role.isBlank()) {
             claims.put("role", role);
-        }
-        if (userId != null) {
+        } else if (userId != null) {
             claims.put("userId", userId);
         }
 

@@ -59,7 +59,8 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
         partner.setRating(0.0);
         partner.setCreatedAt(LocalDateTime.now()); 
 
-        deliveryPartnerRepository.save(partner); 
+        deliveryPartnerRepository.save(partner);
+
         emailService.sendUserCreatedEmail(
             partner.getPartnerId(),
             partner.getFullName(),
@@ -73,24 +74,25 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
     }
 
     @Override
-    public ResponseDto login(String email, String password) { 
+    public ResponseDto login(String email, String password) {
     	DeliveryPartner partner = deliveryPartnerRepository.findByEmail(email)
     			.orElseThrow(() -> new AccountNotFoundException("Delivery partner account not found with this email!!!"));
+
 		userStatusSupport.ensureActive(userStatusSupport.resolve(partner.getStatus(), partner.getIsActive()), "Delivery partner account");
-    	
+
     	if(!passwordEncoder.matches(password, partner.getPasswordHash())) {
     		throw new PasswordNotMatchException("Wrong Password");
     	}
-    	
+
     	partner.setCreatedAt(LocalDateTime.now());
     	partner.setIsActive(true);
 		partner.setStatus(UserStatus.ACTIVE);
-    	
+
     	deliveryPartnerRepository.save(partner);
-    	
-    	String token = jwtService.generateToken(partner.getEmail(), UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId()); 
-        
-        return new ResponseDto("Delivery partner login successful", token, UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId(), partner.getEmail());  
+
+    	String token = jwtService.generateToken(partner.getEmail(), UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId());
+
+        return new ResponseDto("Delivery partner login successful", token, UserRole.DELIVERY_PARTNER.name(), partner.getPartnerId(), partner.getEmail());
     }
 
     @Override
@@ -100,6 +102,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
      
     @Override
     public ResponseDto refreshToken(String token) {
+
     	if(tokenBlacklistService.isBlacklisted(token)) {  
     		throw new RuntimeException("Token is blacklisted");
     	}
@@ -107,6 +110,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
     	String email = jwtService.extractEmailFromToken(token);
     	DeliveryPartner partner = deliveryPartnerRepository.findByEmail(email)
     			.orElseThrow(() -> new RuntimeException("Delivery partner not found"));
+
 		userStatusSupport.ensureActive(userStatusSupport.resolve(partner.getStatus(), partner.getIsActive()), "Delivery partner account");
     	
     	UserDetails userDetails = new org.springframework.security.core.userdetails.User(
@@ -175,10 +179,6 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 			throw new PasswordNotMatchException("Old password is incorrect");
 		}
 		
-		if(!passwordDto.getNewPassword().equals(passwordDto.getConfirmPassword())) {
-			throw new RuntimeException("New password and confirm password do not match");
-		}
-		
 		partner.setPasswordHash(passwordEncoder.encode(passwordDto.getNewPassword()));
 		deliveryPartnerRepository.save(partner);
 		
@@ -193,17 +193,19 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 		partner.setIsActive(false);
 		partner.setStatus(UserStatus.SUSPENDED);
 		deliveryPartnerRepository.save(partner);
+
         emailService.sendUserSuspendedEmail(
             partner.getPartnerId(),
             partner.getFullName(),
             partner.getEmail(),
             UserRole.DELIVERY_PARTNER.name()
         );
-		
+
 		return new ResponseDto("Account deactivated successfully", "");
 	}
 
 	private DeliveryPartnerProfileDto mapToProfileDto(DeliveryPartner partner) {
+
 		return new DeliveryPartnerProfileDto(
 				partner.getPartnerId(),
 				partner.getFullName(),
@@ -235,6 +237,7 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 	@Override
 	public ResponseDto verifyOtp(String email, String otp) {
 		OtpService.OtpVerificationResult result = otpService.verifyOtp(email, otp);
+
 		if (result == OtpService.OtpVerificationResult.INVALID) {
 			throw new RuntimeException("Wrong otp. Please send otp again.");
 		}
@@ -248,9 +251,10 @@ public class DeliveryPartnerAuthServiceImpl implements IDeliveryPartnerAuthServi
 	public ResponseDto resetPassword(String email, String newPassword) {
 		DeliveryPartner partner = deliveryPartnerRepository.findByEmail(email)
 				.orElseThrow(() -> new AccountNotFoundException("Account not found with this email"));
+
 		partner.setPasswordHash(passwordEncoder.encode(newPassword));
 		deliveryPartnerRepository.save(partner);
+
 		return new ResponseDto("Password reset successfully", "");
 	}
-	
 }

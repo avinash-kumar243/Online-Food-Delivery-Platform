@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class TokenBlacklistService {
 
+    // Creating a thread-safe Set for storing invalid JWT tokens.
     private final Set<String> blacklistedTokens = ConcurrentHashMap.newKeySet();
 
-    
     public void blacklistToken(String token) {
         blacklistedTokens.add(token);
     }
