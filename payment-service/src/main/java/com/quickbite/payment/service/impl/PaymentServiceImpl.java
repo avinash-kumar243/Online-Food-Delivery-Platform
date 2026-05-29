@@ -4,13 +4,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.quickbite.payment.client.AuthServiceClient;
 import com.quickbite.payment.client.OrderServiceClient;
+import com.quickbite.payment.client.dto.InternalUserSummaryDto;
 import com.quickbite.payment.dto.CodPaymentRequest;
 import com.quickbite.payment.dto.CreatePaymentOrderRequest;
 import com.quickbite.payment.dto.CreatePaymentOrderResponse;
@@ -26,6 +29,7 @@ import com.quickbite.payment.exception.PaymentException;
 import com.quickbite.payment.exception.ResourceNotFoundException;
 import com.quickbite.payment.gateway.RazorpayGateway;
 import com.quickbite.payment.messaging.GenericEventPublisher;
+import com.quickbite.payment.messaging.QuickbiteOrderMessagingConstants;
 import com.quickbite.payment.messaging.dto.PaymentEventDTO;
 import com.quickbite.payment.repository.PaymentRepository;
 import com.quickbite.payment.service.PaymentService;
@@ -45,9 +49,27 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final RazorpayGateway razorpayGateway;
     private final OrderServiceClient orderServiceClient;
+    private final AuthServiceClient authServiceClient;
     private final WalletService walletService;
     private final ObjectMapper objectMapper;
     private final GenericEventPublisher eventPublisher;
+
+    @Autowired
+    public PaymentServiceImpl(PaymentRepository paymentRepository,
+                              RazorpayGateway razorpayGateway,
+                              OrderServiceClient orderServiceClient,
+                              AuthServiceClient authServiceClient,
+                              WalletService walletService,
+                              ObjectMapper objectMapper,
+                              GenericEventPublisher eventPublisher) {
+        this.paymentRepository = paymentRepository;
+        this.razorpayGateway = razorpayGateway;
+        this.orderServiceClient = orderServiceClient;
+        this.authServiceClient = authServiceClient;
+        this.walletService = walletService;
+        this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
+    }
 
     public PaymentServiceImpl(PaymentRepository paymentRepository,
                               RazorpayGateway razorpayGateway,
@@ -55,18 +77,14 @@ public class PaymentServiceImpl implements PaymentService {
                               WalletService walletService,
                               ObjectMapper objectMapper,
                               GenericEventPublisher eventPublisher) {
-        this.paymentRepository = paymentRepository;
-        this.razorpayGateway = razorpayGateway;
-        this.orderServiceClient = orderServiceClient;
-        this.walletService = walletService;
-        this.objectMapper = objectMapper;
-        this.eventPublisher = eventPublisher;
+        this(paymentRepository, razorpayGateway, orderServiceClient, null, walletService, objectMapper, eventPublisher);
     }
 
     @Override
     @Transactional
     public CreatePaymentOrderResponse createRazorpayOrder(CreatePaymentOrderRequest request) {
         OrderSnapshotDto order = orderServiceClient.getOrderById(request.orderId());
+        validateCustomer(request.customerId(), order.customerId());
         var payableAmount = resolvePayableAmount(request, order);
 
         Payment payment = paymentRepository.findByOrderIdForUpdate(request.orderId())
@@ -111,7 +129,8 @@ public class PaymentServiceImpl implements PaymentService {
         if (!validSignature) {
             payment.setStatus(PaymentStatus.FAILED);
             Payment savedPayment = paymentRepository.save(payment);
-            publishPaymentEvent(savedPayment, "payment.failed");
+            publishPaymentEvent(savedPayment, QuickbiteOrderMessagingConstants.PAYMENT_FAILED_ROUTING_KEY);
+            syncOrderPaymentStatus(savedPayment);
             throw new PaymentException("Invalid Razorpay payment signature");
         }
 
@@ -123,7 +142,8 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaidAt(LocalDateTime.now());
 
         Payment savedPayment = paymentRepository.save(payment);
-        publishPaymentEvent(savedPayment, "payment.success");
+        publishPaymentEvent(savedPayment, QuickbiteOrderMessagingConstants.PAYMENT_COMPLETED_ROUTING_KEY);
+        syncOrderPaymentStatus(savedPayment);
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -131,6 +151,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public PaymentResponse createCodPayment(CodPaymentRequest request) {
         OrderSnapshotDto order = orderServiceClient.getOrderById(request.orderId());
+        validateCustomer(request.customerId(), order.customerId());
         var payableAmount = resolvePayableAmount(request.orderId(), order);
 
         Payment payment = paymentRepository.findByOrderIdForUpdate(request.orderId())
@@ -138,6 +159,7 @@ public class PaymentServiceImpl implements PaymentService {
             .orElseGet(() -> getOrCreatePendingCodPayment(request, payableAmount));
 
         Payment savedPayment = paymentRepository.save(payment);
+        syncOrderPaymentStatus(savedPayment);
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -181,6 +203,8 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         Payment savedPayment = paymentRepository.save(payment);
+        publishPaymentEvent(savedPayment, QuickbiteOrderMessagingConstants.REFUND_INITIATED_ROUTING_KEY);
+        syncOrderPaymentStatus(savedPayment);
         return mapToPaymentResponse(savedPayment);
     }
 
@@ -260,7 +284,8 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setPaidAt(LocalDateTime.now());
         }
         Payment savedPayment = paymentRepository.save(payment);
-        publishPaymentEvent(savedPayment, "payment.success");
+        publishPaymentEvent(savedPayment, QuickbiteOrderMessagingConstants.PAYMENT_COMPLETED_ROUTING_KEY);
+        syncOrderPaymentStatus(savedPayment);
     }
 
     private void handlePaymentFailed(JsonNode root) {
@@ -275,7 +300,8 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.setStatus(PaymentStatus.FAILED);
         Payment savedPayment = paymentRepository.save(payment);
-        publishPaymentEvent(savedPayment, "payment.failed");
+        publishPaymentEvent(savedPayment, QuickbiteOrderMessagingConstants.PAYMENT_FAILED_ROUTING_KEY);
+        syncOrderPaymentStatus(savedPayment);
     }
 
     private void handleRefundProcessed(JsonNode root) {
@@ -294,15 +320,26 @@ public class PaymentServiceImpl implements PaymentService {
 
     private void publishPaymentEvent(Payment payment, String routingKey) {
         OrderSnapshotDto order = orderServiceClient.getOrderById(payment.getOrderId());
-        eventPublisher.send(routingKey, new PaymentEventDTO(
+        PaymentEventDTO payload = new PaymentEventDTO(
             payment.getOrderId(),
-            order.customerId(),
-            order.restaurantId(),
-            order.deliveryAgentId(),
+            order == null ? payment.getCustomerId() : order.customerId(),
+            order == null ? null : order.restaurantId(),
+            order == null ? null : order.deliveryAgentId(),
             payment.getTransactionId(),
             payment.getStatus().name(),
             payment.getAmount()
-        ));
+        );
+        eventPublisher.send(routingKey, payload);
+        if (QuickbiteOrderMessagingConstants.PAYMENT_COMPLETED_ROUTING_KEY.equals(routingKey)) {
+            eventPublisher.send("payment.success", payload);
+        }
+    }
+
+    private void syncOrderPaymentStatus(Payment payment) {
+        orderServiceClient.updateOrderPaymentStatus(
+            payment.getOrderId(),
+            new OrderPaymentStatusRequest(payment.getStatus().name())
+        );
     }
 
     private Payment findByWebhookIds(String razorpayPaymentId, String razorpayOrderId) {
@@ -447,5 +484,20 @@ public class PaymentServiceImpl implements PaymentService {
             payment.getCreatedAt(),
             payment.getUpdatedAt()
         );
+    }
+
+    private void validateCustomer(Long requestCustomerId, Long orderCustomerId) {
+        if (!requestCustomerId.equals(orderCustomerId)) {
+            throw new PaymentException("Customer does not match the target order");
+        }
+
+        if (authServiceClient == null) {
+            return;
+        }
+
+        InternalUserSummaryDto customer = authServiceClient.getUserSummary("CUSTOMER", requestCustomerId);
+        if (customer == null || !Boolean.TRUE.equals(customer.isActive())) {
+            throw new PaymentException("Customer account is not active for payment processing");
+        }
     }
 }
