@@ -13,10 +13,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect # Use MySQL dialect if H2 is in MySQL mode
         format_sql: true
-  rabbitmq:
-    listener:
-      simple:
-        auto-startup: false
   security:
     oauth2:
       client:
