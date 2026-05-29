@@ -35,16 +35,24 @@ public class RabbitMqConfig {
 
     @Bean
     Declarables reviewDeclarables(TopicExchange quickbiteOrderExchange, TopicExchange quickbiteOrderDeadLetterExchange) {
-        var deliveredQueue = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE)
-            .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq"))
+        var orderCompletedQueue = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_COMPLETED_QUEUE)
+            .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.ORDER_COMPLETED_QUEUE + ".dlq"))
             .build();
-        var deliveredDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_DELIVERED_QUEUE + ".dlq").build();
+        var orderCompletedDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.ORDER_COMPLETED_QUEUE + ".dlq").build();
+        var deliveryCompletedQueue = QueueBuilder.durable(QuickbiteOrderMessagingConstants.DELIVERY_COMPLETED_QUEUE)
+            .withArguments(deadLetterArguments(QuickbiteOrderMessagingConstants.DELIVERY_COMPLETED_QUEUE + ".dlq"))
+            .build();
+        var deliveryCompletedDlq = QueueBuilder.durable(QuickbiteOrderMessagingConstants.DELIVERY_COMPLETED_QUEUE + ".dlq").build();
 
         return new Declarables(
-            deliveredQueue,
-            deliveredDlq,
-            BindingBuilder.bind(deliveredQueue).to(quickbiteOrderExchange).with("order.delivered"),
-            BindingBuilder.bind(deliveredDlq).to(quickbiteOrderDeadLetterExchange).with(deliveredDlq.getName())
+            orderCompletedQueue,
+            orderCompletedDlq,
+            deliveryCompletedQueue,
+            deliveryCompletedDlq,
+            BindingBuilder.bind(orderCompletedQueue).to(quickbiteOrderExchange).with("order.completed"),
+            BindingBuilder.bind(deliveryCompletedQueue).to(quickbiteOrderExchange).with("delivery.completed"),
+            BindingBuilder.bind(orderCompletedDlq).to(quickbiteOrderDeadLetterExchange).with(orderCompletedDlq.getName()),
+            BindingBuilder.bind(deliveryCompletedDlq).to(quickbiteOrderDeadLetterExchange).with(deliveryCompletedDlq.getName())
         );
     }
 
