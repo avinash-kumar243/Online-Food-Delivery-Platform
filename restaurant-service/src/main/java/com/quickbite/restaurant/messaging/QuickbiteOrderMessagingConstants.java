@@ -4,9 +4,10 @@ public final class QuickbiteOrderMessagingConstants {
 
     public static final String ORDER_EXCHANGE = "quickbite.order.exchange";
     public static final String ORDER_DLX = "quickbite.order.dlx.exchange";
-    public static final String ORDER_CREATED_QUEUE = "quickbite.restaurant-service.order-created";
-    public static final String PAYMENT_SUCCESS_QUEUE = "quickbite.restaurant-service.payment-success";
-    public static final String DELIVERY_ASSIGNED_QUEUE = "quickbite.restaurant-service.delivery-assigned";
+    public static final String RESTAURANT_APPROVED_ROUTING_KEY = "restaurant.approved";
+    public static final String RESTAURANT_REJECTED_ROUTING_KEY = "restaurant.rejected";
+    public static final String RESTAURANT_STATUS_CHANGED_ROUTING_KEY = "restaurant.status.changed";
+    public static final String RESTAURANT_DELETED_ROUTING_KEY = "restaurant.deleted";
 
     private QuickbiteOrderMessagingConstants() {
     }
